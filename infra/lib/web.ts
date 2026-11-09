@@ -15,6 +15,8 @@ import type { Storage } from './storage.js';
 
 export const LOCAL_ORIGIN = 'http://localhost:5173';
 export const BRANDING_PREFIX = 'branding/';
+export const TEMPLATE_ASSETS_PREFIX = 'template-assets/';
+export const TEMPLATES_PREFIX = 'templates/';
 
 export interface WebProps {
   storage: Storage;
@@ -84,19 +86,23 @@ export class Web extends Construct {
       responsePagePath: '/index.html',
       ttl: Duration.seconds(0),
     });
+    const assetsOrigin = origins.S3BucketOrigin.withOriginAccessControl(assetsBucket);
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(this.siteBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         responseHeadersPolicy: headers,
       },
-      additionalBehaviors: {
-        [`${BRANDING_PREFIX}*`]: {
-          origin: origins.S3BucketOrigin.withOriginAccessControl(assetsBucket),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          responseHeadersPolicy: headers,
-        },
-      },
+      additionalBehaviors: Object.fromEntries(
+        [BRANDING_PREFIX, TEMPLATE_ASSETS_PREFIX].map((prefix) => [
+          `${prefix}*`,
+          {
+            origin: assetsOrigin,
+            viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+            responseHeadersPolicy: headers,
+          },
+        ]),
+      ),
       defaultRootObject: 'index.html',
       errorResponses: [spaFallback(403), spaFallback(404)],
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
@@ -125,7 +131,9 @@ export class Web extends Construct {
       memorySize: 512,
     });
     table.grantReadWriteData(this.api);
-    assetsBucket.grantReadWrite(this.api, `${BRANDING_PREFIX}*`);
+    for (const prefix of [BRANDING_PREFIX, TEMPLATE_ASSETS_PREFIX, TEMPLATES_PREFIX]) {
+      assetsBucket.grantReadWrite(this.api, `${prefix}*`);
+    }
     this.api.addToRolePolicy(
       new iam.PolicyStatement({
         actions: [
@@ -193,6 +201,7 @@ export class Web extends Construct {
           apiUrl: this.httpApi.apiEndpoint,
           userPoolId: userPool.userPoolId,
           userPoolClientId: webClient.userPoolClientId,
+          siteUrl: this.siteUrl,
         }),
       ],
       distribution: this.distribution,

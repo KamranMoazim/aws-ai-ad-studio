@@ -1,86 +1,13 @@
-import {
-  AdminCreateUserCommand,
-  AdminDeleteUserCommand,
-  AdminInitiateAuthCommand,
-  AdminSetUserPasswordCommand,
-  CognitoIdentityProviderClient,
-} from '@aws-sdk/client-cognito-identity-provider';
-import { randomBytes } from 'node:crypto';
-import { loadOutputs } from '../scripts/outputs.js';
 import { check, finish } from './helpers.js';
+import { call, createTestUser, deleteCognitoUsers, run, testEmail, token } from './live.js';
 
-const outputs = loadOutputs();
-const { createUser } = await import('../src/data/users.js');
 const { deletePartitions } = await import('./cleanup.js');
-
-const cognito = new CognitoIdentityProviderClient({ region: outputs.Region });
-const run = randomBytes(4).toString('hex');
-const password = `Test-${randomBytes(9).toString('base64url')}1a!`;
-const testEmail = (label: string) => `success+adstudio-${run}-${label}@simulator.amazonses.com`;
 const ASSIGNMENT_WAIT_MS = 70_000;
-
-async function token(email: string): Promise<string> {
-  await cognito.send(
-    new AdminSetUserPasswordCommand({
-      UserPoolId: outputs.UserPoolId,
-      Username: email,
-      Password: password,
-      Permanent: true,
-    }),
-  );
-  const response = await cognito.send(
-    new AdminInitiateAuthCommand({
-      UserPoolId: outputs.UserPoolId,
-      ClientId: outputs.UserPoolClientId,
-      AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
-      AuthParameters: { USERNAME: email, PASSWORD: password },
-    }),
-  );
-  return response.AuthenticationResult!.AccessToken!;
-}
-
-async function call(
-  accessToken: string | undefined,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<{ status: number; body: any }> {
-  const response = await fetch(`${outputs.ApiUrl}${path}`, {
-    method,
-    headers: {
-      ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  return { status: response.status, body: await response.json().catch(() => ({})) };
-}
 
 const clientIds = (response: { body: any }) =>
   (response.body.clients ?? []).map((client: { clientId: string }) => client.clientId).sort();
 
-const adminEmail = testEmail('admin');
-const created = await cognito.send(
-  new AdminCreateUserCommand({
-    UserPoolId: outputs.UserPoolId,
-    Username: adminEmail,
-    MessageAction: 'SUPPRESS',
-    UserAttributes: [
-      { Name: 'email', Value: adminEmail },
-      { Name: 'email_verified', Value: 'true' },
-    ],
-  }),
-);
-const adminId = created.User!.Attributes!.find((attribute) => attribute.Name === 'sub')!.Value!;
-await createUser({
-  userId: adminId,
-  email: adminEmail,
-  name: `Test Admin ${run}`,
-  type: 'staff',
-  roleIds: ['super-admin'],
-  status: 'active',
-  createdAt: new Date().toISOString(),
-});
+const { userId: adminId, email: adminEmail } = await createTestUser('admin', ['super-admin']);
 
 const userIds: string[] = [adminId];
 const emails: string[] = [adminEmail];
@@ -188,11 +115,7 @@ try {
   });
   check('admin disables the client user', disable.body.status === 'disabled', disable);
 } finally {
-  for (const email of emails) {
-    await cognito
-      .send(new AdminDeleteUserCommand({ UserPoolId: outputs.UserPoolId, Username: email }))
-      .catch(() => undefined);
-  }
+  await deleteCognitoUsers(emails);
   await deletePartitions([
     ...userIds.filter(Boolean).map((userId) => `USER#${userId}`),
     ...createdClients.map((clientId) => `CLIENT#${clientId}`),

@@ -20,6 +20,12 @@ export function Shell({ branding, me, route, onSignOut, children }: ShellProps) 
       show: true,
     },
     {
+      label: 'Templates',
+      to: href.templates(),
+      active: route.page === 'templates' || route.page === 'template',
+      show: me.can.includes('template:read'),
+    },
+    {
       label: 'Users',
       to: href.users(),
       active: route.page === 'users',
@@ -54,7 +60,9 @@ export function Shell({ branding, me, route, onSignOut, children }: ShellProps) 
           </button>
         </div>
       </header>
-      <main className="shell-main">{children}</main>
+      <main className={route.page === 'template' ? 'shell-main wide' : 'shell-main'}>
+        {children}
+      </main>
     </div>
   );
 }

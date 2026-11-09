@@ -3,6 +3,7 @@ export interface AppConfig {
   apiUrl: string;
   userPoolId: string;
   userPoolClientId: string;
+  siteUrl: string;
 }
 
 let cached: Promise<AppConfig> | null = null;

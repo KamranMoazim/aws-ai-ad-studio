@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { api, ApiError, errorText } from '../lib/api';
 import { isSignedIn, signOut } from '../lib/auth';
 import { applyBranding, loadBranding } from '../lib/branding';
@@ -7,10 +7,15 @@ import { ClientDetailPage } from '../pages/ClientDetail';
 import { ClientsPage } from '../pages/Clients';
 import { SettingsPage } from '../pages/Settings';
 import { SignIn } from '../pages/SignIn';
+import { TemplatesPage } from '../pages/Templates';
 import { UsersPage } from '../pages/Users';
 import { Brand } from './Brand';
 import { useHashRoute } from './routes';
 import { Shell } from './Shell';
+
+const TemplateBuilder = lazy(() =>
+  import('../pages/builder/Builder').then((module) => ({ default: module.TemplateBuilder })),
+);
 
 type State =
   | { status: 'loading' }
@@ -91,6 +96,16 @@ export function App() {
       {route.page === 'clients' && <ClientsPage me={me} />}
       {route.page === 'client' && <ClientDetailPage clientId={route.clientId} me={me} />}
       {route.page === 'users' && <UsersPage me={me} />}
+      {route.page === 'templates' && <TemplatesPage me={me} />}
+      {route.page === 'template' && (
+        <Suspense fallback={<p className="muted">Loading builder...</p>}>
+          <TemplateBuilder
+            key={route.templateId}
+            templateId={route.templateId}
+            canPublish={me.can.includes('template:create')}
+          />
+        </Suspense>
+      )}
       {route.page === 'settings' && <SettingsPage onSaved={refreshBranding} />}
     </Shell>
   );

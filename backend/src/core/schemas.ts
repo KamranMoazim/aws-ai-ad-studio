@@ -25,6 +25,13 @@ export const settingsInputSchema = z.object({
     .regex(/^branding\/logo-[a-f0-9]{16}\.(png|jpg|webp)$/)
     .optional(),
   supportEmail: z.email().optional(),
+  safeZone: z
+    .object({
+      top: z.number().min(0).max(45),
+      bottom: z.number().min(0).max(45),
+      sides: z.number().min(0).max(45),
+    })
+    .optional(),
 });
 export type SettingsInput = z.infer<typeof settingsInputSchema>;
 export type Settings = SettingsInput & { updatedAt: string };

@@ -56,3 +56,15 @@ export interface Settings extends Branding {
   logoKey?: string;
   supportEmail?: string;
 }
+
+export interface TemplateMeta {
+  templateId: string;
+  name: string;
+  channel: 'display' | 'meta' | 'both';
+  tags: string[];
+  status: 'draft' | 'published';
+  latestVersion: number;
+  revision: number;
+  publishedRevision?: number;
+  updatedAt: string;
+}

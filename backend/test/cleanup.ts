@@ -30,3 +30,22 @@ export async function deletePartitions(partitionKeys: string[]): Promise<void> {
     } while (startKey);
   }
 }
+
+export async function deletePrefix(prefix: string): Promise<void> {
+  const { DeleteObjectsCommand, ListObjectsV2Command, S3Client } = await import(
+    '@aws-sdk/client-s3'
+  );
+  const s3Client = new S3Client({});
+  const listed = await s3Client.send(
+    new ListObjectsV2Command({ Bucket: process.env.ASSETS_BUCKET!, Prefix: prefix }),
+  );
+  const objects = (listed.Contents ?? []).map((item) => ({ Key: item.Key! }));
+  if (objects.length) {
+    await s3Client.send(
+      new DeleteObjectsCommand({
+        Bucket: process.env.ASSETS_BUCKET!,
+        Delete: { Objects: objects },
+      }),
+    );
+  }
+}

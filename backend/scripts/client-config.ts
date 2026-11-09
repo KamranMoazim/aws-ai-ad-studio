@@ -11,6 +11,7 @@ writeFileSync(
       apiUrl: process.env.API_URL ?? outputs.ApiUrl,
       userPoolId: outputs.UserPoolId,
       userPoolClientId: outputs.UserPoolClientId,
+      siteUrl: outputs.SiteUrl,
     },
     null,
     2,

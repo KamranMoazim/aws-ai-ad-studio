@@ -3,7 +3,13 @@ import { z } from 'zod';
 import { HttpError } from '../../core/http-error.js';
 import { newId } from '../../core/ids.js';
 import { settingsInputSchema } from '../../core/schemas.js';
-import { assetUrl, LOGO_TYPES, MAX_LOGO_BYTES, objectSize, uploadUrl } from '../../core/storage.js';
+import {
+  assetUrl,
+  IMAGE_TYPES,
+  MAX_LOGO_BYTES,
+  objectSize,
+  uploadUrl,
+} from '../../core/storage.js';
 import { recordAudit } from '../../data/audit.js';
 import { getSettings, putSettings } from '../../data/settings.js';
 import type { AppEnv } from '../auth.js';
@@ -12,7 +18,7 @@ import { permitOrg } from '../permit.js';
 export const settingsRoutes = new Hono<AppEnv>();
 
 const logoUploadSchema = z.object({
-  contentType: z.enum(Object.keys(LOGO_TYPES) as Array<keyof typeof LOGO_TYPES>),
+  contentType: z.enum(Object.keys(IMAGE_TYPES) as Array<keyof typeof IMAGE_TYPES>),
   size: z.number().int().min(1).max(MAX_LOGO_BYTES),
 });
 
@@ -42,6 +48,6 @@ settingsRoutes.put('/', async (context) => {
 settingsRoutes.post('/logo-upload-url', async (context) => {
   await permitOrg(context, 'settings:manage');
   const { contentType, size } = logoUploadSchema.parse(await context.req.json());
-  const key = `branding/logo-${newId()}.${LOGO_TYPES[contentType]}`;
+  const key = `branding/logo-${newId()}.${IMAGE_TYPES[contentType]}`;
   return context.json({ key, url: await uploadUrl(key, contentType, size) });
 });

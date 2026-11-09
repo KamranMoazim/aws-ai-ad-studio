@@ -5,15 +5,18 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:keys && npm run test:policies",
+    "test": "npm run test:keys && npm run test:policies && npm run test:template",
+    "test:template": "tsx test/template.test.ts",
     "test:keys": "tsx test/keys.test.ts",
     "test:policies": "tsx test/policies.test.ts",
     "test:authz:live": "tsx test/authz-live.test.ts",
     "test:flow:live": "tsx test/flow-live.test.ts",
-    "test:live": "npm run test:authz:live && npm run test:flow:live",
+    "test:live": "npm run test:authz:live && npm run test:flow:live && npm run test:templates:live",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "client-config": "tsx scripts/client-config.ts",
-    "dev:api": "tsx watch src/api/local.ts"
+    "dev:api": "tsx watch src/api/local.ts",
+    "seed:templates": "tsx scripts/seed-templates.ts",
+    "test:templates:live": "tsx test/templates-live.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1164.0",

@@ -7,13 +7,14 @@ import { clientRoutes } from './routes/clients.js';
 import { meRoutes } from './routes/me.js';
 import { roleRoutes } from './routes/roles.js';
 import { settingsRoutes } from './routes/settings.js';
+import { templateRoutes } from './routes/templates.js';
 import { userRoutes } from './routes/users.js';
 
 export const app = new Hono<AppEnv>();
 
 app.get('/health', (context) => context.json({ ok: true }));
 app.route('/branding', brandingRoutes);
-for (const path of ['/me', '/settings', '/users', '/roles', '/clients']) {
+for (const path of ['/me', '/settings', '/users', '/roles', '/clients', '/templates']) {
   app.use(path, requireUser);
   app.use(`${path}/*`, requireUser);
 }
@@ -22,11 +23,15 @@ app.route('/settings', settingsRoutes);
 app.route('/users', userRoutes);
 app.route('/roles', roleRoutes);
 app.route('/clients', clientRoutes);
+app.route('/templates', templateRoutes);
 
 app.notFound((context) => context.json({ error: 'not_found', message: 'Not found' }, 404));
 app.onError((error, context) => {
   if (error instanceof HttpError) {
-    return context.json({ error: error.code, message: error.message }, error.status as 400);
+    return context.json(
+      { error: error.code, message: error.message, details: error.details },
+      error.status as 400,
+    );
   }
   if (error instanceof ZodError) {
     const issue = error.issues[0];

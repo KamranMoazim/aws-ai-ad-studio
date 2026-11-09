@@ -138,10 +138,11 @@ check(
 
 const [distribution] = ofType('AWS::CloudFront::Distribution');
 const behaviors = distribution?.Properties.DistributionConfig?.CacheBehaviors ?? [];
+const paths = behaviors.map((behavior: { PathPattern: string }) => behavior.PathPattern).sort();
 check(
-  'branding path served from cloudfront',
-  behaviors.some((behavior: { PathPattern: string }) => behavior.PathPattern === 'branding/*'),
-  behaviors,
+  'only branding and template assets are served from the assets bucket',
+  JSON.stringify(paths) === JSON.stringify(['branding/*', 'template-assets/*']),
+  paths,
 );
 check(
   'no nat gateway or vpc',

@@ -21,3 +21,15 @@ export const auditPk = (iso: string) => `AUDIT#${iso.slice(0, 7)}`;
 export const auditSk = (iso: string, auditId: string) => `${iso}#${auditId}`;
 export const userAuditIndexPk = (userId: string) => `${USER_PREFIX}${userId}#AUDIT`;
 export const clientIdFromKey = (key: string) => key.slice(CLIENT_PREFIX.length);
+
+export const TEMPLATE_PREFIX = 'TPL#';
+export const VERSION_PREFIX = 'V#';
+export const templatePk = (templateId: string) => `${TEMPLATE_PREFIX}${templateId}`;
+export const templateIndexPk = (status: string) => `TPLS#${status}`;
+export const templateIndexSk = (channel: string, name: string) =>
+  `${channel}#${name.toLowerCase()}`;
+export const versionSk = (version: number) =>
+  `${VERSION_PREFIX}${String(version).padStart(6, '0')}`;
+export const templateDraftKey = (templateId: string) => `templates/${templateId}/draft.json`;
+export const templateVersionKey = (templateId: string, version: number) =>
+  `templates/${templateId}/v${version}.json`;
