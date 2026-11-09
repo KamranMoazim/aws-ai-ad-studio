@@ -237,6 +237,14 @@ check(
     !policies.includes('foundation-model/anthropic.*'),
 );
 
+const siteHeaders = json(ofType('AWS::CloudFront::ResponseHeadersPolicy'));
+const imageSources = siteHeaders.match(/img-src[^;]{0,200}/)?.[0] ?? '';
+check(
+  'the web app may show client photos from the assets bucket by presigned URL',
+  imageSources.includes('StorageAssetsBucket') && imageSources.includes('RegionalDomainName'),
+  imageSources,
+);
+
 const acls = ofType('AWS::WAFv2::WebACL');
 const siteAcl = acls.find((acl) => acl.Properties.Scope === 'CLOUDFRONT');
 check(

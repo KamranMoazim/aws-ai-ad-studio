@@ -21,7 +21,7 @@ export function FocalPicker({
   };
   return (
     <div className="focal-picker" onClick={pick} title="Click the most important part of the photo">
-      <img src={asset.url} alt={asset.name} />
+      <img src={asset.url} alt={asset.name} crossOrigin="anonymous" />
       <span
         className="focal-dot"
         style={{ left: `${asset.focalX * 100}%`, top: `${asset.focalY * 100}%` }}
@@ -118,7 +118,7 @@ export function AssetsTab({ clientId }: { clientId: string }) {
               <FocalPicker asset={asset} onPick={(x, y) => setFocal(asset, x, y)} />
             ) : (
               <div className="logo-box">
-                <img src={asset.url} alt={asset.name} />
+                <img src={asset.url} alt={asset.name} crossOrigin="anonymous" />
               </div>
             )}
             <figcaption>

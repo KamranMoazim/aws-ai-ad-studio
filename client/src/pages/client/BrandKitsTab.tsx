@@ -152,7 +152,7 @@ export function BrandKitsTab({ clientId }: { clientId: string }) {
                     })
                   }
                 >
-                  <img src={asset.url} alt={asset.name} />
+                  <img src={asset.url} alt={asset.name} crossOrigin="anonymous" />
                 </button>
               );
             })}

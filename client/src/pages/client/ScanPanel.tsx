@@ -141,6 +141,7 @@ function Review({
             <img
               src={candidate.previewUrl}
               alt={candidate.source.alt || `Logo candidate ${candidate.index + 1}`}
+              crossOrigin="anonymous"
             />
             {result.logo.choice.logoIndex === candidate.index && (
               <span className="badge active">suggested</span>
@@ -183,7 +184,7 @@ function Review({
             title={`${photo.label ?? ''} ${photo.quality ? `${photo.quality}/5` : ''} ${photo.description ?? photo.alt}`}
             onClick={() => setPhotos(toggle(photos, photo.index))}
           >
-            <img src={photo.url} alt={photo.description ?? photo.alt} />
+            <img src={photo.url} alt={photo.description ?? photo.alt} crossOrigin="anonymous" />
           </button>
         ))}
       </div>
