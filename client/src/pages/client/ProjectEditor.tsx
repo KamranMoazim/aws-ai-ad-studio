@@ -11,10 +11,16 @@ import {
   type SizeKey,
   type Template,
 } from '../../../../shared/src/index';
-import { href } from '../../app/routes';
+import { hashQuery, href } from '../../app/routes';
 import { uploadAsset } from '../../lib/assets';
 import { api, ApiError, errorText } from '../../lib/api';
-import type { Asset, ExportRecord, Project, ProjectValues } from '../../lib/types';
+import {
+  formatMoney,
+  type Asset,
+  type ExportRecord,
+  type Project,
+  type ProjectValues,
+} from '../../lib/types';
 import { AdStage } from '../../renderer/AdStage';
 import { ensureFonts } from '../../renderer/fonts';
 import { measureText } from '../../renderer/measure';
@@ -25,7 +31,10 @@ interface Loaded {
   template: Template;
   safeZone: SafeZone;
   imageUrls: Record<string, string>;
+  payment: { required: boolean; paid: boolean };
 }
+
+const WATERMARK = 'PREVIEW';
 
 const PREVIEW_BOX = 230;
 const FOCUS_BOX = { width: 520, height: 520 };
@@ -67,6 +76,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       setAssets(assetList.assets);
       setFocus(sizesForChannel(data.template.channel)[0]);
       await loadExports();
+      if (hashQuery('paid')) {
+        setMessage('Payment received. Your files are being prepared and will appear below.');
+      }
     })().catch((reason) => setError(errorText(reason)));
   }, [projectId, loadExports]);
 
@@ -166,9 +178,25 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
 
   const exportNow = () =>
     run(async () => {
-      await api(`/projects/${projectId}/export`, { method: 'POST' });
+      const result = await api<{ exportId: string; checkoutUrl?: string }>(
+        `/projects/${projectId}/export`,
+        { method: 'POST' },
+      );
+      if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+        return;
+      }
       setMessage('Export started. Files appear below when ready.');
       await loadExports();
+    });
+
+  const emailLink = (record: ExportRecord) =>
+    run(async () => {
+      const result = await api<{ sentTo: string }>(
+        `/projects/${projectId}/exports/${record.exportId}/email`,
+        { method: 'POST' },
+      );
+      setMessage(`Download link sent to ${result.sentTo}. It works for 7 days.`);
     });
 
   const download = (record: ExportRecord) =>
@@ -194,6 +222,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     });
 
   const blocking = hasErrors(issues);
+  const watermark = loaded.payment.required && !loaded.payment.paid ? WATERMARK : undefined;
   const rendering = exports.some((record) => record.status === 'rendering');
 
   return (
@@ -224,7 +253,11 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             title={dirty ? 'Save first' : blocking ? 'Fix the problems marked in red' : undefined}
             onClick={exportNow}
           >
-            {rendering ? 'Exporting...' : `Export ${sizes.length} sizes`}
+            {rendering
+              ? 'Exporting...'
+              : loaded.payment.required
+                ? `Pay and export ${sizes.length} sizes`
+                : `Export ${sizes.length} sizes`}
           </button>
         </span>
       </header>
@@ -375,6 +408,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
               scale={fitScale(focus, FOCUS_BOX.width, FOCUS_BOX.height)}
               imageUrl={(src) => urls[src]}
               safeZone={loaded.safeZone}
+              watermark={watermark}
             />
           </div>
           <div className="preview-grid">
@@ -393,6 +427,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                       content={contentForSize(content, size)}
                       scale={fitScale(size, PREVIEW_BOX, PREVIEW_BOX * 0.7)}
                       imageUrl={(src) => urls[src]}
+                      watermark={watermark}
                     />
                   </span>
                   <span className="size-thumb-label">
@@ -437,7 +472,22 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                   >
                     {record.status}
                   </span>
-                  {record.status === 'ready' && (
+                  {record.status === 'awaiting_payment' && record.checkoutUrl && (
+                    <>
+                      <span className="muted">
+                        {record.amountCents && record.currency
+                          ? formatMoney(record.amountCents, record.currency)
+                          : ''}
+                      </span>
+                      <a className="link-button" href={record.checkoutUrl}>
+                        Pay now
+                      </a>
+                    </>
+                  )}
+                  {record.status === 'ready' && record.revoked && (
+                    <span className="muted">Refunded; downloads are disabled</span>
+                  )}
+                  {record.status === 'ready' && !record.revoked && (
                     <>
                       <span className="muted">
                         {record.files?.length} files,{' '}
@@ -448,6 +498,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                       </span>
                       <button className="link-button" onClick={() => download(record)}>
                         Download ZIP
+                      </button>
+                      <button className="link-button" onClick={() => emailLink(record)}>
+                        Email me the link
                       </button>
                     </>
                   )}

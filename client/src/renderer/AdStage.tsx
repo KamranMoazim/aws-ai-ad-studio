@@ -41,6 +41,7 @@ interface AdStageProps {
   safeZone?: SafeZone;
   interaction?: Interaction;
   overlay?: ReactNode;
+  watermark?: string;
 }
 
 interface NodeProps {
@@ -224,8 +225,45 @@ function SafeZoneOverlay({
   );
 }
 
+function Watermark({ width, height, text }: { width: number; height: number; text: string }) {
+  const fontSize = Math.max(10, Math.min(width, height) * 0.09);
+  const step = fontSize * 4;
+  const rows = [];
+  for (let y = -height; y < height * 2; y += step) {
+    rows.push(
+      <Text
+        key={y}
+        x={-width}
+        y={y}
+        width={width * 3}
+        text={`${text}   `.repeat(Math.ceil((width * 3) / (fontSize * text.length * 0.6)))}
+        fontSize={fontSize}
+        fontFamily={cssFamily('Inter')}
+        fontStyle="700"
+        fill="#ffffff"
+        stroke="#000000"
+        strokeWidth={0.5}
+        wrap="none"
+      />,
+    );
+  }
+  return (
+    <Group
+      listening={false}
+      opacity={0.22}
+      rotation={-30}
+      x={width / 2}
+      y={height / 2}
+      offsetX={width / 2}
+      offsetY={height / 2}
+    >
+      {rows}
+    </Group>
+  );
+}
+
 export const AdStage = forwardRef<Konva.Stage, AdStageProps>(function AdStage(
-  { template, size, content, scale, imageUrl, safeZone, interaction, overlay },
+  { template, size, content, scale, imageUrl, safeZone, interaction, overlay, watermark },
   ref,
 ) {
   const layout = template.layouts[size];
@@ -261,6 +299,7 @@ export const AdStage = forwardRef<Konva.Stage, AdStageProps>(function AdStage(
         {safeZone && size === STORY_SIZE && (
           <SafeZoneOverlay width={layout.width} height={layout.height} zone={safeZone} />
         )}
+        {watermark && <Watermark width={layout.width} height={layout.height} text={watermark} />}
         {overlay}
       </Layer>
     </Stage>

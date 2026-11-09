@@ -30,6 +30,7 @@ const CLIENT_ACTIONS: Action[] = [
   'client:assign-staff',
   'payment:toggle',
   'user:invite',
+  'txn:read',
 ];
 
 clientRoutes.get('/', async (context) => {

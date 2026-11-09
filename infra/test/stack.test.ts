@@ -110,7 +110,7 @@ const zipFunctions = appFunctions.filter((fn) => fn.Properties.Runtime);
 const imageFunctions = appFunctions.filter((fn) => fn.Properties.PackageType === 'Image');
 check(
   'zip functions on node 24 arm64',
-  zipFunctions.length === 4 &&
+  zipFunctions.length === 5 &&
     zipFunctions.every(
       (fn) =>
         fn.Properties.Runtime === 'nodejs24.x' &&
@@ -155,8 +155,15 @@ const publicRoutes = routes
   .map((route) => route.Properties.RouteKey)
   .sort();
 check(
-  'only health and branding are public',
-  json(publicRoutes) === json(['GET /branding', 'GET /health']),
+  'only health, branding, download links, the Stripe webhook and preflight are public',
+  json(publicRoutes) ===
+    json([
+      'GET /branding',
+      'GET /d/{token}',
+      'GET /health',
+      'OPTIONS /{proxy+}',
+      'POST /webhooks/stripe',
+    ]),
   publicRoutes,
 );
 
@@ -164,13 +171,26 @@ const [distribution] = ofType('AWS::CloudFront::Distribution');
 const behaviors = distribution?.Properties.DistributionConfig?.CacheBehaviors ?? [];
 const paths = behaviors.map((behavior: { PathPattern: string }) => behavior.PathPattern).sort();
 check(
-  'only branding and template assets are served from the assets bucket',
-  JSON.stringify(paths) === JSON.stringify(['branding/*', 'template-assets/*']),
+  'branding, template assets and download links have their own paths',
+  JSON.stringify(paths) === JSON.stringify(['branding/*', 'd/*', 'template-assets/*']),
   paths,
 );
 check(
   'no nat gateway or vpc',
   ofType('AWS::EC2::NatGateway').length === 0 && ofType('AWS::EC2::VPC').length === 0,
+);
+
+const download = behaviors.find(
+  (behavior: { PathPattern: string }) => behavior.PathPattern === 'd/*',
+);
+check(
+  'download links are never cached',
+  download?.CachePolicyId === '4135ea2d-6df8-44a3-9df3-4b5a84be39ad',
+  download,
+);
+check(
+  'stripe keys are readable only as named parameters',
+  policies.includes('/adstudio/stripe-secret-key') && !policies.includes('parameter/*'),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

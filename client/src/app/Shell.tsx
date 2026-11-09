@@ -32,6 +32,18 @@ export function Shell({ branding, me, route, onSignOut, children }: ShellProps) 
       show: me.can.includes('user:manage'),
     },
     {
+      label: 'Pricing',
+      to: href.pricing(),
+      active: route.page === 'pricing',
+      show: me.can.includes('pricing:manage'),
+    },
+    {
+      label: 'Transactions',
+      to: href.transactions(),
+      active: route.page === 'transactions',
+      show: me.can.includes('txn:read'),
+    },
+    {
       label: 'Settings',
       to: href.settings(),
       active: route.page === 'settings',

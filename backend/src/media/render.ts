@@ -9,7 +9,7 @@ import { startStaticServer } from './render-server.js';
 
 const s3Client = new S3Client({});
 const bucket = () => process.env.ASSETS_BUCKET!;
-const RENDER_ROOT = process.env.RENDER_ROOT ?? '/var/task/render';
+const RENDER_ROOT = '/var/task/render-page';
 const RENDER_TIMEOUT_MS = 30_000;
 
 export interface RenderEvent {

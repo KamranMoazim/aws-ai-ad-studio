@@ -1,10 +1,13 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { ZodError } from 'zod';
 import { HttpError } from '../core/http-error.js';
 import { requireUser, type AppEnv } from './auth.js';
 import { assetRoutes } from './routes/assets.js';
 import { brandKitRoutes } from './routes/brand-kits.js';
 import { brandingRoutes } from './routes/branding.js';
+import { downloadRoutes } from './routes/downloads.js';
+import { clientPaymentRoutes, priceRoutes, transactionRoutes } from './routes/payments.js';
 import { clientRoutes } from './routes/clients.js';
 import { meRoutes } from './routes/me.js';
 import { clientProjectRoutes, projectRoutes } from './routes/projects.js';
@@ -14,9 +17,21 @@ import { templateRoutes } from './routes/templates.js';
 import { userRoutes } from './routes/users.js';
 
 export const app = new Hono<AppEnv>();
+const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173').split(',');
+
+app.use(
+  '*',
+  cors({
+    origin: (origin) => (allowedOrigins.includes(origin) ? origin : null),
+    allowHeaders: ['authorization', 'content-type'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
+    maxAge: 3600,
+  }),
+);
 
 app.get('/health', (context) => context.json({ ok: true }));
 app.route('/branding', brandingRoutes);
+app.route('/d', downloadRoutes);
 for (const path of [
   '/me',
   '/settings',
@@ -38,6 +53,9 @@ app.route('/clients', assetRoutes);
 app.route('/clients', brandKitRoutes);
 app.route('/clients', clientProjectRoutes);
 app.route('/projects', projectRoutes);
+app.route('/clients', clientPaymentRoutes);
+app.route('/prices', priceRoutes);
+app.route('/transactions', transactionRoutes);
 app.route('/templates', templateRoutes);
 
 app.notFound((context) => context.json({ error: 'not_found', message: 'Not found' }, 404));

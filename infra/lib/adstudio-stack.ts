@@ -9,6 +9,7 @@ import { Web } from './web.js';
 export interface AdStudioStackProps extends StackProps {
   appName: string;
   clientDistPath: string;
+  senderEmail?: string;
 }
 
 export class AdStudioStack extends Stack {
@@ -38,6 +39,7 @@ export class AdStudioStack extends Stack {
       media: this.media,
       exports: this.exports,
       clientDistPath: props.clientDistPath,
+      senderEmail: props.senderEmail,
     });
     this.auth.customMessage.addEnvironment('SITE_URL', this.web.siteUrl);
 
@@ -54,6 +56,9 @@ export class AdStudioStack extends Stack {
     new CfnOutput(this, 'RenderFunctionName', { value: this.media.render.functionName });
     new CfnOutput(this, 'ProcessUploadFunctionName', {
       value: this.media.processUpload.functionName,
+    });
+    new CfnOutput(this, 'StripeWebhookUrl', {
+      value: `${this.web.httpApi.apiEndpoint}/webhooks/stripe`,
     });
     new CfnOutput(this, 'ExportStateMachineArn', {
       value: this.exports.stateMachine.stateMachineArn,

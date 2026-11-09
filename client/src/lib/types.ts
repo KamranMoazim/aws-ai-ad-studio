@@ -131,7 +131,12 @@ export interface ExportFile {
 
 export interface ExportRecord {
   exportId: string;
-  status: 'rendering' | 'ready' | 'failed';
+  status: 'awaiting_payment' | 'rendering' | 'ready' | 'failed';
+  taskType?: string;
+  amountCents?: number;
+  currency?: string;
+  checkoutUrl?: string;
+  revoked?: boolean;
   templateVersion: number;
   revision: number;
   files?: ExportFile[];
@@ -140,3 +145,31 @@ export interface ExportRecord {
   createdAt: string;
   finishedAt?: string;
 }
+
+export interface Price {
+  taskType: string;
+  amountCents: number;
+  currency: string;
+  updatedAt: string;
+}
+
+export interface Transaction {
+  txnId: string;
+  clientId: string;
+  clientName?: string;
+  projectId: string;
+  exportId: string;
+  taskType: string;
+  amountCents: number;
+  currency: string;
+  status: 'paid' | 'exempt' | 'refunded';
+  receiptUrl?: string;
+  stripePaymentIntentId?: string;
+  createdAt: string;
+  refundedAt?: string;
+}
+
+export const formatMoney = (cents: number, currency: string) =>
+  new Intl.NumberFormat(undefined, { style: 'currency', currency: currency.toUpperCase() }).format(
+    cents / 100,
+  );

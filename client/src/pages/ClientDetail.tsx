@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { InviteForm } from '../components/InviteForm';
 import { api, errorText } from '../lib/api';
-import type { Client, ClientDetail, Me, Role, TemplateMeta, User } from '../lib/types';
+import type { Client, ClientDetail, Me, Price, Role, TemplateMeta, User } from '../lib/types';
+import { PriceTable } from './Pricing';
 import { useLoad } from '../lib/useLoad';
 
 interface DetailData {
@@ -86,6 +87,8 @@ export function ClientDetailPage({ clientId, me }: { clientId: string; me: Me })
           }
         />
       )}
+
+      {me.can.includes('pricing:manage') && <ClientPrices clientId={client.clientId} />}
 
       {can.includes('client:update') && me.can.includes('template:read') && (
         <TemplateAccess client={client} onSave={(templateIds) => update({ templateIds })} />
@@ -241,6 +244,33 @@ function TemplateAccess({
       <button className="button primary" onClick={() => onSave(all ? null : [...selected])}>
         Save template access
       </button>
+    </div>
+  );
+}
+
+function ClientPrices({ clientId }: { clientId: string }) {
+  const { data, reload } = useLoad(async () => {
+    const [defaults, overrides] = await Promise.all([
+      api<{ taskTypes: Record<string, string> }>('/prices'),
+      api<{ prices: Price[] }>(`/clients/${clientId}/prices`),
+    ]);
+    return { taskTypes: defaults.taskTypes, prices: overrides.prices };
+  }, [clientId]);
+  return (
+    <div className="panel">
+      <h2>Price overrides</h2>
+      <p className="muted">
+        Only used when payment is required. Empty means the default price applies.
+      </p>
+      {data && (
+        <PriceTable
+          path={`/clients/${clientId}/prices`}
+          taskTypes={data.taskTypes}
+          prices={data.prices}
+          onChanged={reload}
+          emptyLabel="Default price"
+        />
+      )}
     </div>
   );
 }

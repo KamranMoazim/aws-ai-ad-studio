@@ -264,7 +264,14 @@ export interface ExportRecord {
   exportId: string;
   projectId: string;
   clientId: string;
-  status: 'rendering' | 'ready' | 'failed';
+  status: 'awaiting_payment' | 'rendering' | 'ready' | 'failed';
+  taskType?: string;
+  amountCents?: number;
+  currency?: string;
+  checkoutUrl?: string;
+  revoked?: boolean;
+  snapshotKey?: string;
+  sizes?: string[];
   templateId: string;
   templateVersion: number;
   revision: number;
@@ -275,4 +282,53 @@ export interface ExportRecord {
   createdAt: string;
   createdBy: string;
   finishedAt?: string;
+}
+
+export const TASK_TYPES = {
+  'template-set': 'Template ad set (all sizes)',
+  'ai-set': 'AI ad set',
+  'single-size': 'Single size',
+  're-export': 'Re-export after edits',
+  'image-edit': 'AI image edit',
+} as const;
+export type TaskType = keyof typeof TASK_TYPES;
+export const TASK_TYPE_KEYS = Object.keys(TASK_TYPES) as TaskType[];
+export const CURRENCIES = ['usd', 'eur', 'gbp', 'cad', 'aud'] as const;
+export const STRIPE_MINIMUM_CENTS = 50;
+
+export const priceInputSchema = z.object({
+  amountCents: z.number().int().min(STRIPE_MINIMUM_CENTS).max(1_000_000),
+  currency: z.enum(CURRENCIES),
+});
+
+export interface Price {
+  taskType: TaskType;
+  amountCents: number;
+  currency: (typeof CURRENCIES)[number];
+  updatedAt: string;
+}
+
+export interface Transaction {
+  txnId: string;
+  clientId: string;
+  projectId: string;
+  exportId: string;
+  taskType: TaskType;
+  amountCents: number;
+  currency: string;
+  status: 'paid' | 'exempt' | 'refunded';
+  stripeSessionId?: string;
+  stripePaymentIntentId?: string;
+  receiptUrl?: string;
+  createdAt: string;
+  refundedAt?: string;
+}
+
+export interface DownloadToken {
+  exportId: string;
+  projectId: string;
+  clientId: string;
+  expiresAt: number;
+  createdBy: string;
+  createdAt: string;
 }

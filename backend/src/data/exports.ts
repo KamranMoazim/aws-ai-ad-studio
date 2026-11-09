@@ -33,24 +33,60 @@ export async function getExport(projectId: string, exportId: string) {
   return (await listExports(projectId)).find((record) => record.exportId === exportId);
 }
 
+export async function updateExport(
+  record: Pick<ExportRecord, 'projectId' | 'createdAt' | 'exportId'>,
+  fields: Partial<ExportRecord>,
+  expectedStatus?: ExportRecord['status'],
+): Promise<boolean> {
+  const setNames = Object.keys(fields).filter(
+    (field) => fields[field as keyof ExportRecord] !== undefined,
+  );
+  const removeNames = Object.keys(fields).filter(
+    (field) => fields[field as keyof ExportRecord] === undefined,
+  );
+  const names = [...setNames, ...removeNames];
+  const clauses = [
+    setNames.length ? `SET ${setNames.map((field) => `#${field} = :${field}`).join(', ')}` : '',
+    removeNames.length ? `REMOVE ${removeNames.map((field) => `#${field}`).join(', ')}` : '',
+  ].filter(Boolean);
+  try {
+    await documentClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { PK: projectPk(record.projectId), SK: exportSk(record.createdAt, record.exportId) },
+        UpdateExpression: clauses.join(' '),
+        ConditionExpression: expectedStatus
+          ? 'attribute_exists(PK) AND #currentStatus = :expectedStatus'
+          : 'attribute_exists(PK)',
+        ExpressionAttributeNames: {
+          ...Object.fromEntries(names.map((field) => [`#${field}`, field])),
+          ...(expectedStatus ? { '#currentStatus': 'status' } : {}),
+        },
+        ExpressionAttributeValues:
+          setNames.length || expectedStatus
+            ? {
+                ...Object.fromEntries(
+                  setNames.map((field) => [`:${field}`, fields[field as keyof ExportRecord]]),
+                ),
+                ...(expectedStatus ? { ':expectedStatus': expectedStatus } : {}),
+              }
+            : undefined,
+      }),
+    );
+    return true;
+  } catch (error) {
+    if ((error as Error).name === 'ConditionalCheckFailedException') {
+      return false;
+    }
+    throw error;
+  }
+}
+
 export async function finishExport(
   record: Pick<ExportRecord, 'projectId' | 'createdAt' | 'exportId'>,
   result:
     | { status: 'ready'; files: ExportFile[]; zipKey: string; zipBytes: number }
     | { status: 'failed'; error: string },
 ): Promise<void> {
-  const fields: Record<string, unknown> = { ...result, finishedAt: new Date().toISOString() };
-  const names = Object.keys(fields);
-  await documentClient.send(
-    new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: { PK: projectPk(record.projectId), SK: exportSk(record.createdAt, record.exportId) },
-      UpdateExpression: `SET ${names.map((field) => `#${field} = :${field}`).join(', ')}`,
-      ConditionExpression: 'attribute_exists(PK)',
-      ExpressionAttributeNames: Object.fromEntries(names.map((field) => [`#${field}`, field])),
-      ExpressionAttributeValues: Object.fromEntries(
-        names.map((field) => [`:${field}`, fields[field]]),
-      ),
-    }),
-  );
+  await updateExport(record, { ...result, finishedAt: new Date().toISOString() });
 }

@@ -47,3 +47,11 @@ export const clientAssetKey = (clientId: string, assetId: string, extension: str
   `assets/${clientId}/${assetId}.${extension}`;
 export const exportPrefix = (clientId: string, projectId: string, exportId: string) =>
   `exports/${clientId}/${projectId}/${exportId}`;
+
+export const PRICE_PREFIX = 'PRICE#';
+export const TXN_PREFIX = 'TXN#';
+export const TXNS_INDEX = 'TXNS';
+export const priceSk = (taskType: string) => `${PRICE_PREFIX}${taskType}`;
+export const txnSk = (iso: string, txnId: string) => `${TXN_PREFIX}${iso}#${txnId}`;
+export const downloadTokenPk = (hash: string) => `DL#${hash}`;
+export const stripeEventPk = (eventId: string) => `STRIPE#${eventId}`;

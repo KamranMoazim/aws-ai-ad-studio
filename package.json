@@ -16,6 +16,8 @@
     "client:dev": "npm --prefix client run dev",
     "client:config": "npm --prefix backend run client-config",
     "test:live": "npm --prefix backend run test:live",
-    "teardown": "scripts/teardown.sh"
+    "teardown": "scripts/teardown.sh",
+    "stripe:keys": "scripts/set-stripe-keys.sh",
+    "stripe:webhook": "npm --prefix backend run stripe:webhook"
   }
 }

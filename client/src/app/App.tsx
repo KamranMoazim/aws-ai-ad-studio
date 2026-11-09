@@ -4,7 +4,9 @@ import { isSignedIn, signOut } from '../lib/auth';
 import { applyBranding, loadBranding } from '../lib/branding';
 import type { Branding, Me } from '../lib/types';
 import { ClientsPage } from '../pages/Clients';
+import { PricingPage } from '../pages/Pricing';
 import { SettingsPage } from '../pages/Settings';
+import { TransactionsPage } from '../pages/Transactions';
 import { SignIn } from '../pages/SignIn';
 import { TemplatesPage } from '../pages/Templates';
 import { UsersPage } from '../pages/Users';
@@ -119,6 +121,8 @@ export function App() {
       )}
       {route.page === 'users' && <UsersPage me={me} />}
       {route.page === 'templates' && <TemplatesPage me={me} />}
+      {route.page === 'pricing' && <PricingPage />}
+      {route.page === 'transactions' && <TransactionsPage />}
       {route.page === 'template' && (
         <Suspense fallback={<p className="muted">Loading builder...</p>}>
           <TemplateBuilder

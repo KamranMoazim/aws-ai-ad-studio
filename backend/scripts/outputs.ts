@@ -14,6 +14,7 @@ export interface StackOutputs {
   RenderFunctionName: string;
   ProcessUploadFunctionName: string;
   ExportStateMachineArn: string;
+  StripeWebhookUrl: string;
 }
 
 export function loadOutputs(): StackOutputs {

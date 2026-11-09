@@ -4,13 +4,17 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 REGION="${AWS_REGION:-us-east-1}"
 
-read -r -p "Delete the AdStudio stack and all its data in $REGION? Type yes: " answer
+read -r -p "Delete the AdStudio stack, its data and stored Stripe keys in $REGION? Type yes: " answer
 if [[ "$answer" != "yes" ]]; then
   echo "cancelled"
   exit 1
 fi
 
 npm --prefix infra run destroy
+
+for name in /adstudio/stripe-secret-key /adstudio/stripe-webhook-secret; do
+  aws ssm delete-parameter --region "$REGION" --name "$name" >/dev/null 2>&1 && echo "deleted $name" || true
+done
 
 # CDK-managed custom resources can leave log groups behind after the stack is gone.
 for prefix in /aws/lambda/AdStudioStack- AdStudioStack-; do

@@ -13,5 +13,6 @@ Tags.of(app).add('project', 'adstudio');
 new AdStudioStack(app, 'AdStudioStack', {
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: 'us-east-1' },
   appName: process.env.APP_NAME || 'AdStudio',
+  senderEmail: process.env.SENDER_EMAIL || undefined,
   clientDistPath: fileURLToPath(new URL('../../client/dist', import.meta.url)),
 });

@@ -15,5 +15,5 @@ FROM public.ecr.aws/lambda/nodejs:24
 COPY media/package.json media/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --fetch-retries=6 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=300000 --fetch-timeout=900000
 COPY --from=build /out/ ./
-COPY client/dist ./render
+COPY client/dist ./render-page
 CMD ["render.handler"]

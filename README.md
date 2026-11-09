@@ -4,7 +4,7 @@ Branded AI ad creative for display and Meta ads, on AWS.
 
 AdStudio is a white-labelled web app where an agency's clients sign in and produce ready-to-upload ads in 8 sizes, either from a locked template or from their website. Agency staff manage clients, templates, pricing and permissions in an admin area. One deployment serves one agency, in the agency's own AWS account.
 
-> Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing. Phase 3 adds the client side: uploads, brand kits, the 8-size ad editor, server-side export and the archive.
+> Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing. Phase 3 adds the client side: uploads, brand kits, the 8-size ad editor, server-side export and the archive. Phase 4 adds payments: prices, Stripe Checkout, webhooks, transactions, refunds and emailed download links.
 
 ## How it works (phase 1)
 
@@ -49,6 +49,32 @@ Template drafts and versions live in S3 (bodies) and DynamoDB (metadata):
 | Export | `PROJ#<id>` | `EXPORT#<ts>#<exportId>` | |
 
 S3 layout in the assets bucket: `uploads/` (raw, deleted after processing, expires after 1 day), `assets/<client>/` (processed), `exports/<client>/<project>/<export>/` (snapshot, files, ZIP; moved to Infrequent Access after 90 days).
+
+## Payments (phase 4)
+
+- **Prices** per task type (`template-set`, `re-export`, and `ai-set`, `single-size`, `image-edit` for later phases), set by anyone with `pricing:manage`, with optional per-client overrides. Prices are passed to Checkout as `price_data`, so changing one never needs the Stripe dashboard. The amount is always looked up on the server.
+- **Export with payment.** If the client has "Payment required" on, the first export of an ad set is charged as `template-set` and later ones as `re-export`. The API writes the snapshot, creates a Checkout Session (idempotency key per export, `client_reference_id` and metadata with the export, project and client) and returns its URL; the export waits as `awaiting_payment`. Exempt clients start rendering straight away and a $0 `exempt` transaction is recorded.
+- **Webhook** (`POST /webhooks/stripe`, its own Lambda): verifies the Stripe signature (5-minute tolerance), skips events it has already processed (`STRIPE#<eventId>`, kept 30 days), and handles `checkout.session.completed` / `async_payment_succeeded` (records the transaction with the receipt URL, then starts the render) and `charge.refunded` (marks the transaction refunded and revokes the export's downloads).
+- **Watermark.** Previews of an unpaid ad set for a paying client carry a light "PREVIEW" watermark. Final files only come from the server.
+- **Download links.** "Email me the link" sends the signed-in user a branded SES email with `https://<app>/d/<token>`. The token is 32 random bytes, stored as a SHA-256 hash, expires after 7 days and opens one export. CloudFront sends `/d/*` to the API uncached, which checks the token, the export and refunds again, then redirects to a 5-minute presigned URL.
+- **Transactions**: admins filter by date, client and status and download CSV (cells that would start a spreadsheet formula are escaped); client owners see their own on the Payments tab. Each row links to the receipt and the Stripe payment.
+
+| Entity | PK | SK | GSI1PK / GSI1SK |
+| --- | --- | --- | --- |
+| Price (default) | `ORG` | `PRICE#<taskType>` | |
+| Price override | `CLIENT#<id>` | `PRICE#<taskType>` | |
+| Transaction | `CLIENT#<id>` | `TXN#<ts>#<exportId>` | `TXNS` / `<ts>#<exportId>` |
+| Download token | `DL#<sha256>` | `META` (TTL 7 days) | |
+| Stripe event | `STRIPE#<eventId>` | `META` (TTL 30 days) | |
+
+**Stripe setup** (test mode first):
+
+```bash
+npm run stripe:keys       # stores the secret key (sk_test_...) in SSM; leave the webhook secret blank
+npm run stripe:webhook    # registers the deployed webhook URL in Stripe and stores its signing secret
+```
+
+Then set prices under Pricing and switch "Payment required" on for a client. Set `SENDER_EMAIL` in `infra/.env` and redeploy to enable emailed links; SES sends that address a verification email, and while the account is in the SES sandbox the recipients must be verified too.
 
 ## Roles and scopes
 
@@ -135,6 +161,13 @@ Local development: `npm run client:config` writes `client/public/config.json` fr
 | `POST` | `/projects/:id/duplicate` | `project:read` + `project:create` |
 | `POST` | `/projects/:id/export` | `project:export`; returns `{ exportId }` |
 | `GET` | `/projects/:id/exports`, `/projects/:id/exports/:exportId` | `project:read` / `project:download` (download URL) |
+| `POST` | `/projects/:id/exports/:exportId/email` | `project:download`; emails the signed-in user a 7-day link |
+| `GET` / `PUT` / `DELETE` | `/prices`, `/prices/:taskType` | `pricing:manage` |
+| `GET` / `PUT` / `DELETE` | `/clients/:id/prices`, `/clients/:id/prices/:taskType` | `pricing:manage` |
+| `GET` | `/clients/:id/transactions` | `txn:read` on the client |
+| `GET` | `/transactions?from&to&clientId&status&format=csv` | `txn:read` |
+| `GET` | `/d/:token` | public; checks the token, then redirects to the file |
+| `POST` | `/webhooks/stripe` | public; Stripe signature required |
 
 ## Tests
 
@@ -154,6 +187,8 @@ npm run test:live        # against the deployed stack (needs bootstrap first)
 - **Render (local Chrome):** every seed template at every size renders at the exact pixel size with no fit errors and compresses under the cap; `[confirm]` and overflowing copy are reported by the render page.
 - **Projects (live):** upload and processing (EXIF gone), a fake image rejected, cross-client upload refused, brand kit fills the new ad set, `[confirm]` blocks export, cross-client assets refused, export of 8 files with every display file at most 150 KB and exact dimensions in the ZIP, cross-client download refused, an export with copy that does not fit fails with the reason, duplicate and archive.
 - **Golden (live):** 3 templates x 2 content sets x 8 sizes rendered by the deployed render Lambda and by local Chrome; each pair must differ in under 0.5% of pixels. Diff images go to `.playwright-mcp/golden-diffs/` when one fails.
+- **Payments (offline):** signed webhooks verify; tampered bodies, other secrets and hour-old signatures are rejected; CSV amounts, labels and formula escaping; price validation; token format and hashing.
+- **Payments (live):** an exempt client exports without Checkout and gets a $0 transaction; a paying client gets a Checkout URL and an `awaiting_payment` export with the server-side amount and no download; a bad signature is rejected; a signed `checkout.session.completed` (sent twice) records one paid transaction and renders the export; the emailed link redirects to the file; a signed `charge.refunded` revokes the link and the in-app download and marks the transaction refunded; client users cannot see payments. The paid part needs the Stripe keys and is skipped with a note otherwise.
 - **Infra:** invite-only pool, SRP only for the web client, 15-minute access tokens, strict policy store, only `/health` and `/branding` public, private encrypted buckets, Node 24 arm64, no VPC or NAT.
 
 ## Build log
@@ -163,11 +198,12 @@ npm run test:live        # against the deployed stack (needs bootstrap first)
 | 1 | Foundation and auth: table, buckets, Cognito invites, Verified Permissions with 5 roles, API skeleton, branded shell |
 | 2 | Templates and renderer: shared template model, Konva renderer, admin builder, browser + server lint, publish and versioning, 3 seed templates |
 | 3 | Client editor and export: uploads with sharp and Rekognition, brand kits, 8-size editor, Chromium render Lambda, compression, ZIP, archive, golden tests |
+| 4 | Payments: price catalogue and overrides, Stripe Checkout, signed and de-duplicated webhooks, transactions and CSV, refunds that revoke downloads, preview watermark, emailed download links |
 
 ## Tear down
 
 ```bash
-npm run teardown    # cdk destroy, then deletes leftover log groups and local outputs
+npm run teardown    # cdk destroy, then deletes the Stripe keys in SSM, leftover log groups and local outputs
 ```
 
 Everything the stack creates (table, buckets, user pool, policy store, logs) is removed with it.

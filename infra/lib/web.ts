@@ -1,4 +1,5 @@
-import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
+import { Duration, Fn, RemovalPolicy, Stack } from 'aws-cdk-lib';
+import * as ses from 'aws-cdk-lib/aws-ses';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
@@ -13,10 +14,16 @@ import type { Auth } from './auth.js';
 import type { ExportPipeline } from './export-pipeline.js';
 import { CLIENT_ASSETS_PREFIX, EXPORTS_PREFIX, UPLOADS_PREFIX, type Media } from './media.js';
 import { appFunction, logGroup } from './function.js';
+import {
+  grantReadParameters,
+  STRIPE_SECRET_KEY_PARAMETER,
+  STRIPE_WEBHOOK_SECRET_PARAMETER,
+} from './secrets.js';
 import type { Storage } from './storage.js';
 
 export const LOCAL_ORIGIN = 'http://localhost:5173';
 export const BRANDING_PREFIX = 'branding/';
+export const DOWNLOAD_PREFIX = 'd/';
 export const TEMPLATE_ASSETS_PREFIX = 'template-assets/';
 export const TEMPLATES_PREFIX = 'templates/';
 
@@ -26,6 +33,7 @@ export interface WebProps {
   media: Media;
   exports: ExportPipeline;
   clientDistPath: string;
+  senderEmail?: string;
 }
 
 export class Web extends Construct {
@@ -34,6 +42,7 @@ export class Web extends Construct {
   readonly siteBucket: s3.Bucket;
   readonly distribution: cloudfront.Distribution;
   readonly siteUrl: string;
+  readonly stripeWebhook: NodejsFunction;
 
   constructor(scope: Construct, id: string, props: WebProps) {
     super(scope, id);
@@ -84,6 +93,13 @@ export class Web extends Construct {
         },
       },
     });
+    // CORS is handled in the Lambda; API-level CORS naming CloudFront would cycle with /d/*.
+    this.httpApi = new apigwv2.HttpApi(this, 'HttpApi', { apiName: 'adstudio-api' });
+    const apiOrigin = new origins.HttpOrigin(
+      Fn.select(2, Fn.split('/', this.httpApi.apiEndpoint)),
+      { protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY },
+    );
+
     const spaFallback = (httpStatus: number): cloudfront.ErrorResponse => ({
       httpStatus,
       responseHttpStatus: 200,
@@ -97,16 +113,25 @@ export class Web extends Construct {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         responseHeadersPolicy: headers,
       },
-      additionalBehaviors: Object.fromEntries(
-        [BRANDING_PREFIX, TEMPLATE_ASSETS_PREFIX].map((prefix) => [
-          `${prefix}*`,
-          {
-            origin: assetsOrigin,
-            viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-            responseHeadersPolicy: headers,
-          },
-        ]),
-      ),
+      additionalBehaviors: {
+        ...Object.fromEntries(
+          [BRANDING_PREFIX, TEMPLATE_ASSETS_PREFIX].map((prefix) => [
+            `${prefix}*`,
+            {
+              origin: assetsOrigin,
+              viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+              responseHeadersPolicy: headers,
+            },
+          ]),
+        ),
+        [`${DOWNLOAD_PREFIX}*`]: {
+          origin: apiOrigin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        },
+      },
       defaultRootObject: 'index.html',
       errorResponses: [spaFallback(403), spaFallback(404)],
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
@@ -132,6 +157,8 @@ export class Web extends Construct {
         SITE_URL: this.siteUrl,
         PROCESS_UPLOAD_FUNCTION: props.media.processUpload.functionName,
         EXPORT_STATE_MACHINE_ARN: props.exports.stateMachine.stateMachineArn,
+        CORS_ORIGINS: `${LOCAL_ORIGIN},${this.siteUrl}`,
+        ...(props.senderEmail ? { SENDER_EMAIL: props.senderEmail } : {}),
       },
       timeout: Duration.seconds(29),
       memorySize: 512,
@@ -171,32 +198,54 @@ export class Web extends Construct {
       }),
     );
 
-    this.httpApi = new apigwv2.HttpApi(this, 'HttpApi', {
-      apiName: 'adstudio-api',
-      corsPreflight: {
-        allowOrigins: [LOCAL_ORIGIN, this.siteUrl],
-        allowHeaders: ['authorization', 'content-type'],
-        allowMethods: [
-          apigwv2.CorsHttpMethod.GET,
-          apigwv2.CorsHttpMethod.POST,
-          apigwv2.CorsHttpMethod.PUT,
-          apigwv2.CorsHttpMethod.DELETE,
-        ],
-        maxAge: Duration.hours(1),
-      },
-    });
     const integration = new HttpLambdaIntegration('ApiIntegration', this.api);
     const authorizer = new HttpJwtAuthorizer(
       'CognitoAuthorizer',
       `https://cognito-idp.${stack.region}.amazonaws.com/${userPool.userPoolId}`,
       { jwtAudience: [webClient.userPoolClientId] },
     );
-    for (const path of ['/health', '/branding']) {
-      this.httpApi.addRoutes({ path, methods: [apigwv2.HttpMethod.GET], integration });
+    this.stripeWebhook = appFunction(this, 'StripeWebhook', {
+      entry: 'src/stripe-webhook/handler.ts',
+      environment: {
+        TABLE_NAME: table.tableName,
+        EXPORT_STATE_MACHINE_ARN: props.exports.stateMachine.stateMachineArn,
+      },
+      timeout: Duration.seconds(20),
+    });
+    table.grantReadWriteData(this.stripeWebhook);
+    props.exports.stateMachine.grantStartExecution(this.stripeWebhook);
+    grantReadParameters(this, this.stripeWebhook, [
+      STRIPE_SECRET_KEY_PARAMETER,
+      STRIPE_WEBHOOK_SECRET_PARAMETER,
+    ]);
+    grantReadParameters(this, this.api, [STRIPE_SECRET_KEY_PARAMETER]);
+    if (props.senderEmail) {
+      new ses.EmailIdentity(this, 'Sender', { identity: ses.Identity.email(props.senderEmail) });
+      this.api.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ['ses:SendEmail'],
+          resources: [`arn:${stack.partition}:ses:${stack.region}:${stack.account}:identity/*`],
+        }),
+      );
+    }
+
+    const publicRoutes: Array<[string, apigwv2.HttpMethod]> = [
+      ['/health', apigwv2.HttpMethod.GET],
+      ['/branding', apigwv2.HttpMethod.GET],
+      ['/d/{token}', apigwv2.HttpMethod.GET],
+      // Preflight requests carry no token; the Lambda answers them from CORS_ORIGINS.
+      ['/{proxy+}', apigwv2.HttpMethod.OPTIONS],
+    ];
+    for (const [path, method] of publicRoutes) {
+      this.httpApi.addRoutes({ path, methods: [method], integration });
     }
     this.httpApi.addRoutes({
+      path: '/webhooks/stripe',
+      methods: [apigwv2.HttpMethod.POST],
+      integration: new HttpLambdaIntegration('StripeWebhookIntegration', this.stripeWebhook),
+    });
+    this.httpApi.addRoutes({
       path: '/{proxy+}',
-      // ANY would route OPTIONS through the authorizer and break CORS preflight.
       methods: [
         apigwv2.HttpMethod.GET,
         apigwv2.HttpMethod.POST,

@@ -1,4 +1,3 @@
-import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { Hono } from 'hono';
 import {
   checkContent,
@@ -19,7 +18,17 @@ import {
   type ExportRecord,
   type Project,
   type ProjectValues,
+  type TaskType,
+  TASK_TYPES,
 } from '../../core/schemas.js';
+import { escapeHtml, sendEmail } from '../../core/email.js';
+import { stripe, type PaymentMetadata } from '../../core/stripe.js';
+import { getClient } from '../../data/clients.js';
+import { createDownloadToken, TOKEN_DAYS } from '../../data/download-tokens.js';
+import { effectivePrice } from '../../data/pricing.js';
+import { createTransaction, listClientTransactions } from '../../data/transactions.js';
+import { getUser } from '../../data/users.js';
+import { startRender } from '../../export/start.js';
 import { putJson, readUrl } from '../../core/storage.js';
 import { listAssets } from '../../data/assets.js';
 import { recordAudit } from '../../data/audit.js';
@@ -33,13 +42,12 @@ import {
   listTemplates,
   type TemplateMeta,
 } from '../../data/templates.js';
-import { snapshotKeyFor, type ExportInput, type ExportSnapshot } from '../../export/snapshot.js';
+import { snapshotKeyFor, type ExportSnapshot } from '../../export/snapshot.js';
 import type { AppEnv } from '../auth.js';
 import { permittedClient, permittedProject } from '../permit.js';
 
 export const clientProjectRoutes = new Hono<AppEnv>();
 export const projectRoutes = new Hono<AppEnv>();
-const sfnClient = new SFNClient({});
 
 const enabledFor = (client: Client, meta: TemplateMeta) =>
   meta.status === 'published' &&
@@ -162,12 +170,24 @@ clientProjectRoutes.post('/:id/projects', async (context) => {
 
 projectRoutes.get('/:id', async (context) => {
   const project = await permittedProject(context, 'project:read');
-  const [template, settings, urls] = await Promise.all([
+  const [template, settings, urls, client, transactions] = await Promise.all([
     getVersion(project.templateId, project.templateVersion),
     getSettings(),
     imageUrls(project.values),
+    getClient(project.clientId),
+    listClientTransactions(project.clientId),
   ]);
-  return context.json({ project, template, safeZone: safeZoneOf(settings), imageUrls: urls });
+  const paid = transactions.some(
+    (txn) =>
+      txn.projectId === project.projectId && (txn.status === 'paid' || txn.status === 'exempt'),
+  );
+  return context.json({
+    project,
+    template,
+    safeZone: safeZoneOf(settings),
+    imageUrls: urls,
+    payment: { required: Boolean(client?.paymentRequired), paid },
+  });
 });
 
 projectRoutes.put('/:id', async (context) => {
@@ -218,10 +238,11 @@ projectRoutes.post('/:id/duplicate', async (context) => {
 
 projectRoutes.post('/:id/export', async (context) => {
   const project = await permittedProject(context, 'project:export');
-  const [template, settings, exports] = await Promise.all([
+  const [template, settings, exports, client] = await Promise.all([
     getVersion(project.templateId, project.templateVersion),
     getSettings(),
     listExports(project.projectId),
+    getClient(project.clientId),
   ]);
   if (exports.some((record) => record.status === 'rendering')) {
     throw new HttpError(409, 'conflict', 'An export of this project is already running');
@@ -231,10 +252,24 @@ projectRoutes.post('/:id/export', async (context) => {
   if (hasErrors(issues)) {
     throw new HttpError(400, 'not_ready', 'Fix the highlighted problems before exporting', issues);
   }
+  const taskType: TaskType = exports.some((record) => record.status === 'ready')
+    ? 're-export'
+    : 'template-set';
+  const price = client!.paymentRequired
+    ? await effectivePrice(project.clientId, taskType)
+    : undefined;
+  if (client!.paymentRequired && !price) {
+    throw new HttpError(
+      400,
+      'no_price',
+      `No price is set for "${TASK_TYPES[taskType]}"; ask the agency to set one`,
+    );
+  }
   const exportId = newId();
   const createdAt = new Date().toISOString();
   const prefix = exportPrefix(project.clientId, project.projectId, exportId);
   const sizes = sizesForChannel(template.channel);
+  const snapshotKey = snapshotKeyFor(prefix);
   const snapshot: ExportSnapshot = {
     exportId,
     projectId: project.projectId,
@@ -246,44 +281,110 @@ projectRoutes.post('/:id/export', async (context) => {
     safeZone,
     sizes,
   };
-  const snapshotKey = snapshotKeyFor(prefix);
   await putJson(snapshotKey, snapshot);
   const record: ExportRecord = {
     exportId,
     projectId: project.projectId,
     clientId: project.clientId,
-    status: 'rendering',
+    status: price ? 'awaiting_payment' : 'rendering',
     templateId: template.id,
     templateVersion: template.version,
     revision: project.revision,
+    taskType,
+    amountCents: price?.amountCents ?? 0,
+    currency: price?.currency,
+    snapshotKey,
+    sizes,
     createdAt,
     createdBy: context.get('principal').userId,
   };
-  await createExport(record);
-  const input: ExportInput = {
+  const userId = context.get('principal').userId;
+  if (!price) {
+    await createExport(record);
+    await createTransaction({
+      txnId: exportId,
+      clientId: project.clientId,
+      projectId: project.projectId,
+      exportId,
+      taskType,
+      amountCents: 0,
+      currency: 'usd',
+      status: 'exempt',
+      createdAt,
+    });
+    await startRender(record);
+    await recordAudit(userId, 'project:export', `PROJ#${project.projectId}`, {
+      exportId,
+      exempt: true,
+    });
+    return context.json({ exportId }, 202);
+  }
+  const metadata: PaymentMetadata = {
     exportId,
     projectId: project.projectId,
     clientId: project.clientId,
-    createdAt,
-    snapshotKey,
-    sizes,
+    exportCreatedAt: createdAt,
+    taskType,
   };
-  await sfnClient.send(
-    new StartExecutionCommand({
-      stateMachineArn: process.env.EXPORT_STATE_MACHINE_ARN!,
-      name: `export-${exportId}`,
-      input: JSON.stringify(input),
-    }),
-  );
-  await recordAudit(
-    context.get('principal').userId,
-    'project:export',
-    `PROJ#${project.projectId}`,
+  const projectUrl = `${process.env.SITE_URL}/#/projects/${project.projectId}`;
+  const session = await (
+    await stripe()
+  ).checkout.sessions.create(
     {
-      exportId,
+      mode: 'payment',
+      client_reference_id: exportId,
+      metadata,
+      payment_intent_data: { metadata },
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: price.currency,
+            unit_amount: price.amountCents,
+            product_data: { name: `${TASK_TYPES[taskType]}: ${project.name}`.slice(0, 250) },
+          },
+        },
+      ],
+      success_url: `${projectUrl}?paid=${exportId}`,
+      cancel_url: projectUrl,
     },
+    { idempotencyKey: `checkout-${exportId}` },
   );
-  return context.json({ exportId }, 202);
+  await createExport({ ...record, checkoutUrl: session.url ?? undefined });
+  await recordAudit(userId, 'project:checkout', `PROJ#${project.projectId}`, {
+    exportId,
+    amountCents: price.amountCents,
+    currency: price.currency,
+  });
+  return context.json({ exportId, checkoutUrl: session.url }, 202);
+});
+
+projectRoutes.post('/:id/exports/:exportId/email', async (context) => {
+  const project = await permittedProject(context, 'project:download');
+  const exportId = context.req.param('exportId');
+  const record = isId(exportId) ? await getExport(project.projectId, exportId) : undefined;
+  if (!record || record.status !== 'ready' || record.revoked) {
+    throw new HttpError(404, 'not_found', 'Export not found or not ready');
+  }
+  const userId = context.get('principal').userId;
+  const [user, settings] = await Promise.all([getUser(userId), getSettings()]);
+  const token = await createDownloadToken({
+    exportId,
+    projectId: project.projectId,
+    clientId: project.clientId,
+    createdBy: userId,
+  });
+  const link = `${process.env.SITE_URL}/d/${token}`;
+  const name = escapeHtml(project.name);
+  await sendEmail({
+    to: user!.email,
+    fromName: settings.appName,
+    subject: `Your ads are ready: ${project.name}`,
+    text: `Your ad set "${project.name}" is ready. Download it here (the link works for ${TOKEN_DAYS} days): ${link}`,
+    html: `<p>Your ad set <strong>${name}</strong> is ready.</p><p><a href="${link}">Download the ZIP</a></p><p>The link works for ${TOKEN_DAYS} days.</p>`,
+  });
+  await recordAudit(userId, 'export:email', `PROJ#${project.projectId}`, { exportId });
+  return context.json({ sentTo: user!.email });
 });
 
 projectRoutes.get('/:id/exports', async (context) => {
@@ -299,7 +400,7 @@ projectRoutes.get('/:id/exports/:exportId', async (context) => {
     throw new HttpError(404, 'not_found', 'Export not found');
   }
   const downloadUrl =
-    record.status === 'ready' && record.zipKey
+    record.status === 'ready' && record.zipKey && !record.revoked
       ? await readUrl(record.zipKey, { downloadName: record.zipKey.split('/').pop() })
       : undefined;
   return context.json({ export: record, downloadUrl });
