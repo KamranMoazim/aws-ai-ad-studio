@@ -10,6 +10,8 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
 import type { Auth } from './auth.js';
+import type { ExportPipeline } from './export-pipeline.js';
+import { CLIENT_ASSETS_PREFIX, EXPORTS_PREFIX, UPLOADS_PREFIX, type Media } from './media.js';
 import { appFunction, logGroup } from './function.js';
 import type { Storage } from './storage.js';
 
@@ -21,6 +23,8 @@ export const TEMPLATES_PREFIX = 'templates/';
 export interface WebProps {
   storage: Storage;
   auth: Auth;
+  media: Media;
+  exports: ExportPipeline;
   clientDistPath: string;
 }
 
@@ -112,7 +116,7 @@ export class Web extends Construct {
     // Listing the CloudFront domain here would make a bucket <-> distribution cycle.
     assetsBucket.addCorsRule({
       allowedOrigins: ['*'],
-      allowedMethods: [s3.HttpMethods.PUT],
+      allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET],
       allowedHeaders: ['content-type', 'content-length'],
       maxAge: 3600,
     });
@@ -126,14 +130,25 @@ export class Web extends Construct {
         USER_POOL_CLIENT_ID: webClient.userPoolClientId,
         POLICY_STORE_ID: policyStore.attrPolicyStoreId,
         SITE_URL: this.siteUrl,
+        PROCESS_UPLOAD_FUNCTION: props.media.processUpload.functionName,
+        EXPORT_STATE_MACHINE_ARN: props.exports.stateMachine.stateMachineArn,
       },
       timeout: Duration.seconds(29),
       memorySize: 512,
     });
     table.grantReadWriteData(this.api);
-    for (const prefix of [BRANDING_PREFIX, TEMPLATE_ASSETS_PREFIX, TEMPLATES_PREFIX]) {
+    for (const prefix of [
+      BRANDING_PREFIX,
+      TEMPLATE_ASSETS_PREFIX,
+      TEMPLATES_PREFIX,
+      EXPORTS_PREFIX,
+    ]) {
       assetsBucket.grantReadWrite(this.api, `${prefix}*`);
     }
+    assetsBucket.grantPut(this.api, `${UPLOADS_PREFIX}*`);
+    assetsBucket.grantRead(this.api, `${CLIENT_ASSETS_PREFIX}*`);
+    props.media.processUpload.grantInvoke(this.api);
+    props.exports.stateMachine.grantStartExecution(this.api);
     this.api.addToRolePolicy(
       new iam.PolicyStatement({
         actions: [

@@ -1,0 +1,8 @@
+**/node_modules
+**/cdk.out
+.git
+.playwright-mcp
+infra
+backend/test
+client/src
+client/public

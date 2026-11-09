@@ -106,15 +106,39 @@ check(
 const appFunctions = ofType('AWS::Lambda::Function').filter(
   (fn) => fn.Properties.Environment?.Variables?.TABLE_NAME,
 );
+const zipFunctions = appFunctions.filter((fn) => fn.Properties.Runtime);
+const imageFunctions = appFunctions.filter((fn) => fn.Properties.PackageType === 'Image');
 check(
-  'app functions on node 24 arm64',
-  appFunctions.length === 2 &&
-    appFunctions.every(
+  'zip functions on node 24 arm64',
+  zipFunctions.length === 4 &&
+    zipFunctions.every(
       (fn) =>
         fn.Properties.Runtime === 'nodejs24.x' &&
         json(fn.Properties.Architectures) === json(['arm64']),
     ),
-  appFunctions.map((fn) => [fn.Properties.Runtime, fn.Properties.Architectures]),
+  zipFunctions.map((fn) => [fn.Properties.Runtime, fn.Properties.Architectures]),
+);
+check(
+  'render and upload functions are x86_64 container images',
+  imageFunctions.length === 2 &&
+    imageFunctions.every((fn) => json(fn.Properties.Architectures) === json(['x86_64'])),
+  imageFunctions.map((fn) => fn.Properties.ImageConfig),
+);
+const [stateMachine] = ofType('AWS::StepFunctions::StateMachine');
+const definition = json(stateMachine?.Properties ?? {});
+check(
+  'export state machine maps over sizes with concurrency 8 and a failure path',
+  definition.includes('MaxConcurrency') &&
+    definition.includes('MarkFailed') &&
+    definition.includes('8'),
+);
+const [bucket] = ofType('AWS::S3::Bucket').filter((item) =>
+  json(item.Properties.LifecycleConfiguration ?? {}).includes('uploads/'),
+);
+check(
+  'raw uploads expire after a day',
+  json(bucket?.Properties.LifecycleConfiguration ?? {}).includes('"ExpirationInDays":1'),
+  bucket?.Properties.LifecycleConfiguration,
 );
 
 const policies = json(ofType('AWS::IAM::Policy'));

@@ -6,6 +6,7 @@ import { sizesForChannel, STORY_SIZE, type SizeKey } from './sizes.js';
 import { elementText, fitElement } from './text.js';
 import {
   contentForSize,
+  type Content,
   type Element,
   type Layout,
   type ResolvedContent,
@@ -22,6 +23,8 @@ export type LintCode =
   | 'overflow'
   | 'truncated'
   | 'max-chars'
+  | 'missing-value'
+  | 'placeholder'
   | 'file-size';
 
 export interface LintIssue {
@@ -35,7 +38,10 @@ export interface LintIssue {
 export interface LintOptions {
   safeZone: SafeZone;
   measure?: MeasureText;
+  stressCopy?: boolean;
 }
+
+export const CONFIRM_PLACEHOLDER = '[confirm]';
 
 const LONG_COPY_WORDS =
   'Book your spring service today and save on every visit with our friendly local team near you';
@@ -95,12 +101,13 @@ function backgroundBehind(
 
 function lintLayout(
   template: Template,
+  values: Content,
   size: SizeKey,
   layout: Layout,
   options: LintOptions,
   issues: LintIssue[],
 ) {
-  const content = contentForSize(template.sample, size);
+  const content = contentForSize(values, size);
   const visible = layout.elements.filter((element) => !element.hidden);
   for (const slot of template.slots.filter((candidate) => candidate.required)) {
     if (!visible.some((element) => element.bind === slot.key)) {
@@ -160,7 +167,15 @@ function lintLayout(
     }
   });
   if (options.measure) {
-    lintText(template, size, visible, content, options.measure, issues);
+    lintText(
+      template,
+      size,
+      visible,
+      content,
+      options.measure,
+      options.stressCopy !== false,
+      issues,
+    );
   }
 }
 
@@ -170,6 +185,7 @@ function lintText(
   elements: Element[],
   content: ResolvedContent,
   measure: MeasureText,
+  stressCopy: boolean,
   issues: LintIssue[],
 ) {
   for (const element of elements.filter((item) => item.type === 'text' || item.type === 'button')) {
@@ -182,17 +198,17 @@ function lintText(
         severity: 'error',
         size,
         elementId: element.id,
-        message: `Sample "${label(element)}" is ${sample.length} characters; the limit is ${maxChars}`,
+        message: `"${label(element)}" is ${sample.length} characters; the limit is ${maxChars}`,
       });
     }
     const texts = [sample];
-    if (maxChars) {
+    if (maxChars && stressCopy) {
       const long = longCopy(maxChars);
       texts.push(element.style.uppercase ? long.toUpperCase() : long);
     }
     for (const [index, text] of texts.entries()) {
       const result = fitElement(template, element, text, measure);
-      const which = index === 0 ? 'sample' : `${maxChars}-character`;
+      const which = index === 0 ? 'this' : `${maxChars}-character`;
       if (!result.fits) {
         issues.push({
           code: 'overflow',
@@ -225,9 +241,46 @@ export function lintTemplate(template: Template, options: LintOptions): LintIssu
   }
   const issues: LintIssue[] = [];
   for (const size of sizesForChannel(template.channel)) {
-    lintLayout(template, size, template.layouts[size]!, options, issues);
+    lintLayout(template, template.sample, size, template.layouts[size]!, options, issues);
   }
   return issues;
+}
+
+export function checkContent(
+  template: Template,
+  content: Content,
+  options: LintOptions,
+): LintIssue[] {
+  const issues: LintIssue[] = [];
+  for (const size of sizesForChannel(template.channel)) {
+    const layout = template.layouts[size]!;
+    const resolved = contentForSize(content, size);
+    const placed = new Set(
+      layout.elements.filter((element) => !element.hidden).map((element) => element.bind),
+    );
+    for (const slot of template.slots.filter((candidate) => placed.has(candidate.key))) {
+      const value =
+        slot.kind === 'text' ? resolved.texts[slot.key]?.trim() : resolved.images[slot.key]?.src;
+      if (slot.required && !value) {
+        issues.push({
+          code: 'missing-value',
+          severity: 'error',
+          size,
+          message: `"${slot.label}" is empty`,
+        });
+      }
+      if (slot.kind === 'text' && value?.toLowerCase().includes(CONFIRM_PLACEHOLDER)) {
+        issues.push({
+          code: 'placeholder',
+          severity: 'error',
+          size,
+          message: `"${slot.label}" still has a ${CONFIRM_PLACEHOLDER} placeholder`,
+        });
+      }
+    }
+    lintLayout(template, content, size, layout, { ...options, stressCopy: false }, issues);
+  }
+  return issues.filter((issue) => issue.code !== 'missing-slot');
 }
 
 export const hasErrors = (issues: LintIssue[]) =>

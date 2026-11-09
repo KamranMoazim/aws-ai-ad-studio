@@ -37,7 +37,7 @@ interface AdStageProps {
   size: SizeKey;
   content: ResolvedContent;
   scale: number;
-  assetBase: string;
+  imageUrl: (src: string) => string | undefined;
   safeZone?: SafeZone;
   interaction?: Interaction;
   overlay?: ReactNode;
@@ -47,7 +47,7 @@ interface NodeProps {
   template: Template;
   element: Element;
   content: ResolvedContent;
-  assetBase: string;
+  imageUrl: (src: string) => string | undefined;
   editing: boolean;
 }
 
@@ -97,9 +97,9 @@ function TextNode({ template, element, content, editing }: NodeProps) {
   );
 }
 
-function ImageNode({ element, content, assetBase }: NodeProps) {
+function ImageNode({ element, content, imageUrl }: NodeProps) {
   const value = element.bind ? content.images[element.bind] : undefined;
-  const image = useImage(value ? `${assetBase}/${value.src}` : undefined);
+  const image = useImage(value ? imageUrl(value.src) : undefined);
   const { w, h } = element.frame;
   const radius = element.style.radius ?? 0;
   if (!image) {
@@ -225,7 +225,7 @@ function SafeZoneOverlay({
 }
 
 export const AdStage = forwardRef<Konva.Stage, AdStageProps>(function AdStage(
-  { template, size, content, scale, assetBase, safeZone, interaction, overlay },
+  { template, size, content, scale, imageUrl, safeZone, interaction, overlay },
   ref,
 ) {
   const layout = template.layouts[size];
@@ -253,7 +253,7 @@ export const AdStage = forwardRef<Konva.Stage, AdStageProps>(function AdStage(
             template={template}
             element={element}
             content={content}
-            assetBase={assetBase}
+            imageUrl={imageUrl}
             editing={Boolean(interaction)}
             interaction={interaction}
           />

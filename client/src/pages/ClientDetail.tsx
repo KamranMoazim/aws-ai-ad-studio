@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { href } from '../app/routes';
 import { InviteForm } from '../components/InviteForm';
 import { api, errorText } from '../lib/api';
-import type { Client, ClientDetail, Me, Role, User } from '../lib/types';
+import type { Client, ClientDetail, Me, Role, TemplateMeta, User } from '../lib/types';
 import { useLoad } from '../lib/useLoad';
 
 interface DetailData {
@@ -22,7 +21,7 @@ async function loadDetail(clientId: string): Promise<DetailData> {
   return { detail, roles: roles?.roles ?? [], staffOptions: staffOptions?.users };
 }
 
-export function ClientDetailPage({ clientId }: { clientId: string; me: Me }) {
+export function ClientDetailPage({ clientId, me }: { clientId: string; me: Me }) {
   const { data, error, reload } = useLoad(() => loadDetail(clientId), [clientId]);
   const [actionError, setActionError] = useState<string | undefined>();
 
@@ -48,13 +47,6 @@ export function ClientDetailPage({ clientId }: { clientId: string; me: Me }) {
 
   return (
     <section>
-      <header className="page-header">
-        <a href={href.clients()} className="muted">
-          Clients
-        </a>
-        <h1>{client.name}</h1>
-        <span className={`badge ${client.status}`}>{client.status}</span>
-      </header>
       {actionError && <p className="error">{actionError}</p>}
 
       {can.includes('client:update') && <DetailsForm client={client} onSave={update} />}
@@ -93,6 +85,10 @@ export function ClientDetailPage({ clientId }: { clientId: string; me: Me }) {
             )
           }
         />
+      )}
+
+      {can.includes('client:update') && me.can.includes('template:read') && (
+        <TemplateAccess client={client} onSave={(templateIds) => update({ templateIds })} />
       )}
 
       {members && (
@@ -192,6 +188,58 @@ function StaffPanel({ assigned, options, onSave }: StaffPanelProps) {
       </ul>
       <button className="button primary" onClick={() => onSave([...selected])}>
         Save assignments
+      </button>
+    </div>
+  );
+}
+
+function TemplateAccess({
+  client,
+  onSave,
+}: {
+  client: Client;
+  onSave: (templateIds: string[] | null) => void;
+}) {
+  const { data } = useLoad(
+    () => api<{ templates: TemplateMeta[] }>('/templates?status=published'),
+    [],
+  );
+  const [all, setAll] = useState(!client.templateIds);
+  const [selected, setSelected] = useState(() => new Set(client.templateIds ?? []));
+  const toggle = (templateId: string) => {
+    const next = new Set(selected);
+    if (next.has(templateId)) {
+      next.delete(templateId);
+    } else {
+      next.add(templateId);
+    }
+    setSelected(next);
+  };
+  return (
+    <div className="panel">
+      <h2>Templates this client can use</h2>
+      <label className="toggle">
+        <input type="checkbox" checked={all} onChange={(event) => setAll(event.target.checked)} />
+        Every published template
+      </label>
+      {!all && (
+        <ul className="plain-list">
+          {(data?.templates ?? []).map((template) => (
+            <li key={template.templateId}>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={selected.has(template.templateId)}
+                  onChange={() => toggle(template.templateId)}
+                />
+                {template.name}
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button className="button primary" onClick={() => onSave(all ? null : [...selected])}>
+        Save template access
       </button>
     </div>
   );

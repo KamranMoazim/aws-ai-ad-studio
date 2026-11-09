@@ -11,6 +11,9 @@ export interface StackOutputs {
   ApiFunctionName: string;
   SiteBucketName: string;
   SiteUrl: string;
+  RenderFunctionName: string;
+  ProcessUploadFunctionName: string;
+  ExportStateMachineArn: string;
 }
 
 export function loadOutputs(): StackOutputs {

@@ -33,3 +33,17 @@ export const versionSk = (version: number) =>
 export const templateDraftKey = (templateId: string) => `templates/${templateId}/draft.json`;
 export const templateVersionKey = (templateId: string, version: number) =>
   `templates/${templateId}/v${version}.json`;
+
+export const ASSET_PREFIX = 'ASSET#';
+export const BRAND_PREFIX = 'BRAND#';
+export const EXPORT_PREFIX = 'EXPORT#';
+export const assetSk = (assetId: string) => `${ASSET_PREFIX}${assetId}`;
+export const brandKitSk = (kitId: string) => `${BRAND_PREFIX}${kitId}`;
+export const projectPk = (projectId: string) => `PROJ#${projectId}`;
+export const clientProjectsIndexPk = (clientId: string) => `${CLIENT_PREFIX}${clientId}#PROJECTS`;
+export const exportSk = (iso: string, exportId: string) => `${EXPORT_PREFIX}${iso}#${exportId}`;
+export const uploadKey = (clientId: string, assetId: string) => `uploads/${clientId}/${assetId}`;
+export const clientAssetKey = (clientId: string, assetId: string, extension: string) =>
+  `assets/${clientId}/${assetId}.${extension}`;
+export const exportPrefix = (clientId: string, projectId: string, exportId: string) =>
+  `exports/${clientId}/${projectId}/${exportId}`;

@@ -1,6 +1,7 @@
 import {
   adaptLayout,
   blankTemplate,
+  checkContent,
   containBox,
   contrastRatio,
   coverCrop,
@@ -41,7 +42,8 @@ check(
 );
 check(
   'wrap keeps cjk within width',
-  wrapText('\u3053\u3093\u306b\u3061\u306f\u4e16\u754c\u3067\u3059', 30, measure, font).length === 2,
+  wrapText('\u3053\u3093\u306b\u3061\u306f\u4e16\u754c\u3067\u3059', 30, measure, font).length ===
+    2,
 );
 check('wrap keeps explicit newlines', wrapText('a\nb', 100, measure, font).length === 2);
 
@@ -193,5 +195,38 @@ check(
   'adapt keeps element ids',
   adapted.elements.map((element) => element.id).join() ===
     seed.layouts['300x250']!.elements.map((element) => element.id).join(),
+);
+const project = clone(seed.sample);
+project.images = { logo: { src: 'assets/c1/0000000000000001.png', focalX: 0.5, focalY: 0.5 } };
+check(
+  'complete project content has no errors',
+  !hasErrors(checkContent(seed, project, { safeZone: DEFAULT_SAFE_ZONE, measure })),
+  checkContent(seed, project, { safeZone: DEFAULT_SAFE_ZONE, measure }).filter(
+    (issue) => issue.severity === 'error',
+  ),
+);
+const unconfirmed = clone(project);
+unconfirmed.texts.offer = '[confirm] 20% off';
+check(
+  'confirm placeholder blocks export',
+  checkContent(seed, unconfirmed, { safeZone: DEFAULT_SAFE_ZONE }).some(
+    (issue) => issue.code === 'placeholder',
+  ),
+);
+const empty = clone(project);
+empty.texts.headline = ' ';
+delete (empty.images as Record<string, unknown>).logo;
+const emptyIssues = checkContent(seed, empty, { safeZone: DEFAULT_SAFE_ZONE });
+check(
+  'empty required text and image block export',
+  emptyIssues.some((issue) => issue.message.includes('Headline')) &&
+    emptyIssues.some((issue) => issue.message.includes('Logo')),
+  emptyIssues,
+);
+check(
+  'project checks skip the long-copy stress test',
+  !checkContent(seed, project, { safeZone: DEFAULT_SAFE_ZONE, measure }).some((issue) =>
+    issue.message.includes('-character copy'),
+  ),
 );
 finish();

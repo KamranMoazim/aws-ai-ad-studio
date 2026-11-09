@@ -306,7 +306,7 @@ export function TemplateBuilder({
                   size={key}
                   content={contentForSize(template.sample, key)}
                   scale={thumbScale}
-                  assetBase={assetBase}
+                  imageUrl={(src) => `${assetBase}/${src}`}
                 />
               </span>
               <span className="size-thumb-label">
@@ -375,7 +375,7 @@ export function TemplateBuilder({
               size={size}
               content={content}
               scale={scale}
-              assetBase={assetBase}
+              imageUrl={(src) => `${assetBase}/${src}`}
               safeZone={loaded.safeZone}
               interaction={{
                 selectedId,

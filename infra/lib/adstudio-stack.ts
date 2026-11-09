@@ -1,6 +1,8 @@
 import { CfnOutput, Stack, type StackProps } from 'aws-cdk-lib';
 import type { Construct } from 'constructs';
 import { Auth } from './auth.js';
+import { ExportPipeline } from './export-pipeline.js';
+import { Media } from './media.js';
 import { Storage } from './storage.js';
 import { Web } from './web.js';
 
@@ -13,15 +15,28 @@ export class AdStudioStack extends Stack {
   readonly storage: Storage;
   readonly auth: Auth;
   readonly web: Web;
+  readonly media: Media;
+  readonly exports: ExportPipeline;
 
   constructor(scope: Construct, id: string, props: AdStudioStackProps) {
     super(scope, id, props);
 
     this.storage = new Storage(this, 'Storage');
     this.auth = new Auth(this, 'Auth', { table: this.storage.table, appName: props.appName });
+    this.media = new Media(this, 'Media', {
+      table: this.storage.table,
+      assetsBucket: this.storage.assetsBucket,
+    });
+    this.exports = new ExportPipeline(this, 'Export', {
+      table: this.storage.table,
+      assetsBucket: this.storage.assetsBucket,
+      render: this.media.render,
+    });
     this.web = new Web(this, 'Web', {
       storage: this.storage,
       auth: this.auth,
+      media: this.media,
+      exports: this.exports,
       clientDistPath: props.clientDistPath,
     });
     this.auth.customMessage.addEnvironment('SITE_URL', this.web.siteUrl);
@@ -36,5 +51,12 @@ export class AdStudioStack extends Stack {
     new CfnOutput(this, 'ApiFunctionName', { value: this.web.api.functionName });
     new CfnOutput(this, 'SiteBucketName', { value: this.web.siteBucket.bucketName });
     new CfnOutput(this, 'SiteUrl', { value: this.web.siteUrl });
+    new CfnOutput(this, 'RenderFunctionName', { value: this.media.render.functionName });
+    new CfnOutput(this, 'ProcessUploadFunctionName', {
+      value: this.media.processUpload.functionName,
+    });
+    new CfnOutput(this, 'ExportStateMachineArn', {
+      value: this.exports.stateMachine.stateMachineArn,
+    });
   }
 }

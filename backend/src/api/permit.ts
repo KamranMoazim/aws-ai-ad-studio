@@ -4,8 +4,9 @@ import { clientResource, ORG } from '../authz/entities.js';
 import type { Action } from '../authz/schema.js';
 import { HttpError } from '../core/http-error.js';
 import { isId } from '../core/ids.js';
-import type { Client } from '../core/schemas.js';
+import type { Client, Project } from '../core/schemas.js';
 import { getClient } from '../data/clients.js';
+import { getProject } from '../data/projects.js';
 import type { AppEnv } from './auth.js';
 
 export async function permitOrg(context: Context<AppEnv>, action: Action): Promise<void> {
@@ -33,4 +34,30 @@ export async function permittedClient(
     throw new HttpError(403, 'forbidden', 'You do not have permission to do this');
   }
   return client;
+}
+
+export async function permittedProject(
+  context: Context<AppEnv>,
+  action: Action,
+  projectId = context.req.param('id') ?? '',
+): Promise<Project> {
+  const project = isId(projectId) ? await getProject(projectId) : undefined;
+  const resource = project && {
+    type: 'Project' as const,
+    id: projectId,
+    clientId: project.clientId,
+  };
+  if (
+    !project ||
+    !(await isAllowed(context.get('principal'), { action: 'project:read', resource: resource! }))
+  ) {
+    throw new HttpError(404, 'not_found', 'Project not found');
+  }
+  if (
+    action !== 'project:read' &&
+    !(await isAllowed(context.get('principal'), { action, resource: resource! }))
+  ) {
+    throw new HttpError(403, 'forbidden', 'You do not have permission to do this');
+  }
+  return project;
 }

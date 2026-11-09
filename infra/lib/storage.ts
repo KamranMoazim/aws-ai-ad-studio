@@ -1,7 +1,10 @@
-import { RemovalPolicy } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
+
+export const UPLOAD_DAYS = 1;
+export const EXPORT_IA_DAYS = 90;
 
 export class Storage extends Construct {
   readonly table: dynamodb.TableV2;
@@ -34,6 +37,18 @@ export class Storage extends Construct {
       versioned: false,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
+      lifecycleRules: [
+        { prefix: 'uploads/', expiration: Duration.days(UPLOAD_DAYS) },
+        {
+          prefix: 'exports/',
+          transitions: [
+            {
+              storageClass: s3.StorageClass.INFREQUENT_ACCESS,
+              transitionAfter: Duration.days(EXPORT_IA_DAYS),
+            },
+          ],
+        },
+      ],
     });
   }
 }

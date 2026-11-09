@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 const images = new Map<string, Promise<HTMLImageElement>>();
 
-function loadImage(url: string): Promise<HTMLImageElement> {
+export function loadImage(url: string): Promise<HTMLImageElement> {
   let pending = images.get(url);
   if (!pending) {
     pending = new Promise((resolve, reject) => {

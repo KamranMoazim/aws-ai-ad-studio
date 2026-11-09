@@ -60,3 +60,20 @@ export async function getJson<T>(key: string): Promise<T> {
   const response = await s3Client.send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
   return JSON.parse(await response.Body!.transformToString()) as T;
 }
+
+const DOWNLOAD_URL_SECONDS = 300;
+const PREVIEW_URL_SECONDS = 3600;
+
+export function readUrl(key: string, options: { downloadName?: string; preview?: boolean } = {}) {
+  return getSignedUrl(
+    s3Client,
+    new GetObjectCommand({
+      Bucket: bucket(),
+      Key: key,
+      ResponseContentDisposition: options.downloadName
+        ? `attachment; filename="${options.downloadName.replace(/[^A-Za-z0-9._-]/g, '_')}"`
+        : undefined,
+    }),
+    { expiresIn: options.preview ? PREVIEW_URL_SECONDS : DOWNLOAD_URL_SECONDS },
+  );
+}

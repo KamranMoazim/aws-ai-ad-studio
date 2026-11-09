@@ -4,7 +4,7 @@ Branded AI ad creative for display and Meta ads, on AWS.
 
 AdStudio is a white-labelled web app where an agency's clients sign in and produce ready-to-upload ads in 8 sizes, either from a locked template or from their website. Agency staff manage clients, templates, pricing and permissions in an admin area. One deployment serves one agency, in the agency's own AWS account.
 
-> Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing.
+> Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing. Phase 3 adds the client side: uploads, brand kits, the 8-size ad editor, server-side export and the archive.
 
 ## How it works (phase 1)
 
@@ -31,6 +31,24 @@ Template drafts and versions live in S3 (bodies) and DynamoDB (metadata):
 | --- | --- | --- | --- |
 | Template | `TPL#<id>` | `META` | `TPLS#<status>` / `<channel>#<name>` |
 | Template version | `TPL#<id>` | `V#<n>` | |
+
+## Client editor and export (phase 3)
+
+- **Uploads** go to `uploads/<client>/` with a presigned PUT (PNG, JPEG or WebP, 10 MB). The media Lambda re-encodes them with sharp (rotated, metadata and EXIF stripped, photos capped at 4000 px as JPEG, logos at 2000 px as PNG with transparency), sets a focal point from Rekognition `DetectFaces` (centre of the faces, or the middle), and stores them privately under `assets/<client>/`. The browser sees them through 1-hour presigned URLs. SVG is not accepted yet.
+- **Brand kits** per client: colors by role, light and dark logos, approved photos, services, offers and CTAs.
+- **Ad sets (projects)** pin a published template version. A new ad set takes colors, logo, photo, CTA and offer from the brand kit; every other text slot starts as `[confirm]`, so nothing is invented. Clients only see published templates the agency enabled for them (all by default, or a list on the client's Account tab).
+- **Editor**: edit each slot once for all sizes, shorter text per size where needed, character counters per size, photo focal point by clicking, colors by role. All 8 sizes render live; overflow, missing values, `[confirm]` and 9:16 safe-zone problems are listed and block export.
+- **Export**: the API checks permissions and the content again, writes a snapshot, and starts a Step Functions run. A Map (concurrency 8) calls the **render Lambda** for each size: an x86_64 container with headless Chromium (`@sparticuz/chromium`, pinned) that loads `render.html`, a page built from the same React/Konva renderer, text fitter and font files as the editor. The page re-checks fit and placeholders, then sharp compresses: display sizes as JPEG with a binary search from quality 90 down to 60 until 150 KB or less (PNG-8 if that fails, otherwise the export fails with a clear reason); Meta sizes as JPEG quality 90. A zip step writes the ZIP plus `manifest.json`; failures mark the export `failed` with the reason.
+- **Archive**: ad sets per client with duplicate, and every export with re-download through a 5-minute presigned URL.
+
+| Entity | PK | SK | GSI1PK / GSI1SK |
+| --- | --- | --- | --- |
+| Asset | `CLIENT#<id>` | `ASSET#<assetId>` | |
+| Brand kit | `CLIENT#<id>` | `BRAND#<kitId>` | |
+| Project | `PROJ#<id>` | `META` | `CLIENT#<id>#PROJECTS` / `<createdAt>` |
+| Export | `PROJ#<id>` | `EXPORT#<ts>#<exportId>` | |
+
+S3 layout in the assets bucket: `uploads/` (raw, deleted after processing, expires after 1 day), `assets/<client>/` (processed), `exports/<client>/<project>/<export>/` (snapshot, files, ZIP; moved to Infrequent Access after 90 days).
 
 ## Roles and scopes
 
@@ -70,7 +88,7 @@ TypeScript end to end, Node.js 24 on arm64 Lambda, AWS CDK (one `AdStudioStack`)
 
 ## Quick start
 
-Prerequisites: an AWS account in `us-east-1` with CDK bootstrapped, and Node.js 24.
+Prerequisites: an AWS account in `us-east-1` with CDK bootstrapped, Node.js 24, and Docker (the render Lambda is a container image). The local render and golden tests use your installed Google Chrome (`CHROME_PATH` to point elsewhere).
 
 ```bash
 npm run install:all
@@ -107,12 +125,23 @@ Local development: `npm run client:config` writes `client/public/config.json` fr
 | `POST` | `/templates/:id/publish` | `template:publish`; lint report + server lint, then a new version |
 | `GET` | `/templates/:id/versions`, `/templates/:id/versions/:n` | `template:read` |
 | `POST` | `/templates/:id/asset-upload-url` | `template:create`; sample image, up to 5 MB |
+| `GET` | `/clients/:id/assets` | `client:read`; ready assets with preview URLs |
+| `POST` | `/clients/:id/assets/upload-url`, `/clients/:id/assets/:assetId/complete` | `brandkit:edit`; presigned upload, then processing |
+| `PUT` | `/clients/:id/assets/:assetId` | `brandkit:edit`; name and focal point |
+| `GET` / `POST` / `PUT` | `/clients/:id/brand-kits`, `/clients/:id/brand-kits/:kitId` | `client:read` / `brandkit:edit` |
+| `GET` | `/clients/:id/templates`, `/clients/:id/templates/:templateId` | `project:create`; published and enabled only |
+| `GET` / `POST` | `/clients/:id/projects` | filtered by `project:read` / `project:create` |
+| `GET` / `PUT` | `/projects/:id` | `project:read` / `project:edit`; save needs the current `revision` |
+| `POST` | `/projects/:id/duplicate` | `project:read` + `project:create` |
+| `POST` | `/projects/:id/export` | `project:export`; returns `{ exportId }` |
+| `GET` | `/projects/:id/exports`, `/projects/:id/exports/:exportId` | `project:read` / `project:download` (download URL) |
 
 ## Tests
 
 ```bash
 npm run typecheck
-npm run backend:test     # offline: keys and schemas, Cedar policy matrix, template model
+npm run backend:test     # offline: keys and schemas, Cedar policy matrix, template model, media
+npm --prefix backend run test:render   # render page in your local Chrome: 3 templates x 8 sizes
 npm run infra:test       # synthesizes the stack and asserts on the template
 npm run test:live        # against the deployed stack (needs bootstrap first)
 ```
@@ -121,6 +150,10 @@ npm run test:live        # against the deployed stack (needs bootstrap first)
 - **Flow (live):** a Super Admin creates two clients, invites a staff user and a client user, assigns the staff user to client A; the staff user sees A only and gets 404 on B; the client user sees only their client and can't edit it, list users or read settings. Test users and clients are removed afterwards.
 - **Template model:** wrapping (spaces, long words, CJK, newlines), shrink and clamp fitting, cover crop at all 8 aspect ratios, contrast maths, seed templates valid and lint-clean, bad bindings, missing sizes, unknown color roles, duplicate ids and external image URLs refused, safe-zone and missing-slot errors, adapt-to-sizes.
 - **Templates (live):** create, invalid draft refused, stale revision conflict, browser lint errors and server-side safe-zone errors block publishing, v1 is immutable after later edits, an unchanged draft can't be published twice, an Account Manager can read but not create or publish, upload URLs are scoped and size-limited.
+- **Media (offline):** flat ads keep quality 90, busy ones are squeezed under 150 KB, an impossible display file is refused with a reason, Meta sizes are JPEG 90, EXIF is stripped, photos are capped at 4000 px, logos keep transparency, SVG, GIF and text files are rejected.
+- **Render (local Chrome):** every seed template at every size renders at the exact pixel size with no fit errors and compresses under the cap; `[confirm]` and overflowing copy are reported by the render page.
+- **Projects (live):** upload and processing (EXIF gone), a fake image rejected, cross-client upload refused, brand kit fills the new ad set, `[confirm]` blocks export, cross-client assets refused, export of 8 files with every display file at most 150 KB and exact dimensions in the ZIP, cross-client download refused, an export with copy that does not fit fails with the reason, duplicate and archive.
+- **Golden (live):** 3 templates x 2 content sets x 8 sizes rendered by the deployed render Lambda and by local Chrome; each pair must differ in under 0.5% of pixels. Diff images go to `.playwright-mcp/golden-diffs/` when one fails.
 - **Infra:** invite-only pool, SRP only for the web client, 15-minute access tokens, strict policy store, only `/health` and `/branding` public, private encrypted buckets, Node 24 arm64, no VPC or NAT.
 
 ## Build log
@@ -129,6 +162,7 @@ npm run test:live        # against the deployed stack (needs bootstrap first)
 | --- | --- |
 | 1 | Foundation and auth: table, buckets, Cognito invites, Verified Permissions with 5 roles, API skeleton, branded shell |
 | 2 | Templates and renderer: shared template model, Konva renderer, admin builder, browser + server lint, publish and versioning, 3 seed templates |
+| 3 | Client editor and export: uploads with sharp and Rekognition, brand kits, 8-size editor, Chromium render Lambda, compression, ZIP, archive, golden tests |
 
 ## Tear down
 

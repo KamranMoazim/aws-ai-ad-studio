@@ -2,9 +2,12 @@ import { Hono } from 'hono';
 import { ZodError } from 'zod';
 import { HttpError } from '../core/http-error.js';
 import { requireUser, type AppEnv } from './auth.js';
+import { assetRoutes } from './routes/assets.js';
+import { brandKitRoutes } from './routes/brand-kits.js';
 import { brandingRoutes } from './routes/branding.js';
 import { clientRoutes } from './routes/clients.js';
 import { meRoutes } from './routes/me.js';
+import { clientProjectRoutes, projectRoutes } from './routes/projects.js';
 import { roleRoutes } from './routes/roles.js';
 import { settingsRoutes } from './routes/settings.js';
 import { templateRoutes } from './routes/templates.js';
@@ -14,7 +17,15 @@ export const app = new Hono<AppEnv>();
 
 app.get('/health', (context) => context.json({ ok: true }));
 app.route('/branding', brandingRoutes);
-for (const path of ['/me', '/settings', '/users', '/roles', '/clients', '/templates']) {
+for (const path of [
+  '/me',
+  '/settings',
+  '/users',
+  '/roles',
+  '/clients',
+  '/templates',
+  '/projects',
+]) {
   app.use(path, requireUser);
   app.use(`${path}/*`, requireUser);
 }
@@ -23,6 +34,10 @@ app.route('/settings', settingsRoutes);
 app.route('/users', userRoutes);
 app.route('/roles', roleRoutes);
 app.route('/clients', clientRoutes);
+app.route('/clients', assetRoutes);
+app.route('/clients', brandKitRoutes);
+app.route('/clients', clientProjectRoutes);
+app.route('/projects', projectRoutes);
 app.route('/templates', templateRoutes);
 
 app.notFound((context) => context.json({ error: 'not_found', message: 'Not found' }, 404));

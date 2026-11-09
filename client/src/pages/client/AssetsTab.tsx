@@ -1,0 +1,118 @@
+import { useState, type MouseEvent } from 'react';
+import { uploadAsset } from '../../lib/assets';
+import { api, errorText } from '../../lib/api';
+import type { Asset } from '../../lib/types';
+import { useLoad } from '../../lib/useLoad';
+
+export function FocalPicker({
+  asset,
+  onPick,
+}: {
+  asset: Asset;
+  onPick: (focalX: number, focalY: number) => void;
+}) {
+  const pick = (event: MouseEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const round = (value: number) => Math.round(Math.min(1, Math.max(0, value)) * 100) / 100;
+    onPick(
+      round((event.clientX - box.left) / box.width),
+      round((event.clientY - box.top) / box.height),
+    );
+  };
+  return (
+    <div className="focal-picker" onClick={pick} title="Click the most important part of the photo">
+      <img src={asset.url} alt={asset.name} />
+      <span
+        className="focal-dot"
+        style={{ left: `${asset.focalX * 100}%`, top: `${asset.focalY * 100}%` }}
+      />
+    </div>
+  );
+}
+
+export function AssetsTab({ clientId }: { clientId: string }) {
+  const { data, error, reload } = useLoad(
+    () => api<{ assets: Asset[] }>(`/clients/${clientId}/assets`),
+    [clientId],
+  );
+  const [kind, setKind] = useState<Asset['kind']>('photo');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | undefined>();
+
+  const upload = async (files: FileList | null) => {
+    if (!files?.length) {
+      return;
+    }
+    setBusy(true);
+    setMessage(undefined);
+    try {
+      for (const file of Array.from(files)) {
+        await uploadAsset(clientId, file, kind);
+      }
+      await reload();
+    } catch (reason) {
+      setMessage(errorText(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const setFocal = async (asset: Asset, focalX: number, focalY: number) => {
+    await api(`/clients/${clientId}/assets/${asset.assetId}`, {
+      method: 'PUT',
+      body: { focalX, focalY },
+    });
+    await reload();
+  };
+
+  return (
+    <div>
+      <div className="panel">
+        <h2>Upload</h2>
+        <div className="inline-form">
+          <select value={kind} onChange={(event) => setKind(event.target.value as Asset['kind'])}>
+            <option value="photo">Photos</option>
+            <option value="logo">Logos</option>
+          </select>
+          <input
+            type="file"
+            multiple
+            accept="image/png,image/jpeg,image/webp"
+            disabled={busy}
+            onChange={(event) => upload(event.target.files)}
+          />
+          {busy && <span className="muted">Uploading and processing...</span>}
+        </div>
+        <p className="hint">
+          PNG, JPEG or WebP up to 10 MB. Photos are resized, cleaned of metadata and get an
+          automatic focal point.
+        </p>
+        {message && <p className="error">{message}</p>}
+      </div>
+      {error && <p className="error">{error}</p>}
+      {data && data.assets.length === 0 && <p className="muted">No photos or logos yet.</p>}
+      <div className="asset-grid">
+        {(data?.assets ?? []).map((asset) => (
+          <figure key={asset.assetId} className="asset-card">
+            {asset.kind === 'photo' ? (
+              <FocalPicker asset={asset} onPick={(x, y) => setFocal(asset, x, y)} />
+            ) : (
+              <div className="logo-box">
+                <img src={asset.url} alt={asset.name} />
+              </div>
+            )}
+            <figcaption>
+              <span>{asset.name}</span>
+              <span className="muted">
+                {asset.kind} - {asset.width} x {asset.height}
+                {asset.facesFound
+                  ? ` - ${asset.facesFound} face${asset.facesFound > 1 ? 's' : ''}`
+                  : ''}
+              </span>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
+  );
+}

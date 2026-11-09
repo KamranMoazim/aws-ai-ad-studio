@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 
+export type ClientTab = 'projects' | 'brand-kits' | 'assets' | 'account';
+const CLIENT_TABS: ClientTab[] = ['projects', 'brand-kits', 'assets', 'account'];
+
 export type Route =
   | { page: 'clients' }
-  | { page: 'client'; clientId: string }
+  | { page: 'client'; clientId: string; tab: ClientTab }
+  | { page: 'project'; projectId: string }
   | { page: 'users' }
   | { page: 'templates' }
   | { page: 'template'; templateId: string }
@@ -10,7 +14,9 @@ export type Route =
 
 export const href = {
   clients: () => '#/clients',
-  client: (clientId: string) => `#/clients/${encodeURIComponent(clientId)}`,
+  client: (clientId: string, tab: ClientTab = 'projects') =>
+    `#/clients/${encodeURIComponent(clientId)}${tab === 'projects' ? '' : `/${tab}`}`,
+  project: (projectId: string) => `#/projects/${encodeURIComponent(projectId)}`,
   users: () => '#/users',
   templates: () => '#/templates',
   template: (templateId: string) => `#/templates/${encodeURIComponent(templateId)}`,
@@ -20,7 +26,11 @@ export const href = {
 function parse(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
   if (parts[0] === 'clients' && parts[1]) {
-    return { page: 'client', clientId: parts[1] };
+    const tab = CLIENT_TABS.find((item) => item === parts[2]) ?? 'projects';
+    return { page: 'client', clientId: parts[1], tab };
+  }
+  if (parts[0] === 'projects' && parts[1]) {
+    return { page: 'project', projectId: parts[1] };
   }
   if (parts[0] === 'templates') {
     return parts[1] ? { page: 'template', templateId: parts[1] } : { page: 'templates' };

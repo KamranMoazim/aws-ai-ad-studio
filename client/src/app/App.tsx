@@ -3,7 +3,6 @@ import { api, ApiError, errorText } from '../lib/api';
 import { isSignedIn, signOut } from '../lib/auth';
 import { applyBranding, loadBranding } from '../lib/branding';
 import type { Branding, Me } from '../lib/types';
-import { ClientDetailPage } from '../pages/ClientDetail';
 import { ClientsPage } from '../pages/Clients';
 import { SettingsPage } from '../pages/Settings';
 import { SignIn } from '../pages/SignIn';
@@ -13,6 +12,12 @@ import { Brand } from './Brand';
 import { useHashRoute } from './routes';
 import { Shell } from './Shell';
 
+const ClientWorkspace = lazy(() =>
+  import('../pages/client/ClientWorkspace').then((module) => ({ default: module.ClientWorkspace })),
+);
+const ProjectEditor = lazy(() =>
+  import('../pages/client/ProjectEditor').then((module) => ({ default: module.ProjectEditor })),
+);
 const TemplateBuilder = lazy(() =>
   import('../pages/builder/Builder').then((module) => ({ default: module.TemplateBuilder })),
 );
@@ -91,10 +96,27 @@ export function App() {
   }
 
   const { me } = state;
+  const loading = <p className="muted">Loading...</p>;
   return (
     <Shell branding={branding} me={me} route={route} onSignOut={leave}>
-      {route.page === 'clients' && <ClientsPage me={me} />}
-      {route.page === 'client' && <ClientDetailPage clientId={route.clientId} me={me} />}
+      {route.page === 'clients' &&
+        (me.user.type === 'client' && me.user.clientId ? (
+          <Suspense fallback={loading}>
+            <ClientWorkspace clientId={me.user.clientId} tab="projects" me={me} />
+          </Suspense>
+        ) : (
+          <ClientsPage me={me} />
+        ))}
+      {route.page === 'client' && (
+        <Suspense fallback={loading}>
+          <ClientWorkspace key={route.clientId} clientId={route.clientId} tab={route.tab} me={me} />
+        </Suspense>
+      )}
+      {route.page === 'project' && (
+        <Suspense fallback={loading}>
+          <ProjectEditor key={route.projectId} projectId={route.projectId} />
+        </Suspense>
+      )}
       {route.page === 'users' && <UsersPage me={me} />}
       {route.page === 'templates' && <TemplatesPage me={me} />}
       {route.page === 'template' && (

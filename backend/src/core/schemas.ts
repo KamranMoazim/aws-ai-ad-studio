@@ -101,6 +101,7 @@ export const clientInputSchema = z.object({
 });
 
 export const clientUpdateSchema = z.object({
+  templateIds: z.array(z.string().min(1).max(64)).max(200).nullable().optional(),
   name: name.optional(),
   website: z.url().optional(),
   paymentRequired: z.boolean().optional(),
@@ -113,9 +114,165 @@ export interface Client {
   website?: string;
   paymentRequired: boolean;
   status: 'active' | 'archived';
+  templateIds?: string[] | null;
   createdAt: string;
 }
 
 export const staffAssignmentSchema = z.object({
   userIds: z.array(z.string().min(1).max(64)).max(50),
 });
+
+const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a #RRGGBB color');
+const roleColors = z
+  .object({
+    primary: hex,
+    secondary: hex,
+    accent: hex,
+    text: hex,
+    background: hex,
+  })
+  .partial();
+const assetId = z.string().regex(/^[a-f0-9]{16}$/);
+
+export const ASSET_KINDS = ['logo', 'photo'] as const;
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+export const uploadRequestSchema = z.object({
+  contentType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+  size: z.number().int().min(1).max(MAX_UPLOAD_BYTES),
+  kind: z.enum(ASSET_KINDS),
+  name: z.string().trim().min(1).max(120),
+});
+
+export const assetUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  focalX: z.number().min(0).max(1).optional(),
+  focalY: z.number().min(0).max(1).optional(),
+});
+
+export interface Asset {
+  assetId: string;
+  clientId: string;
+  kind: (typeof ASSET_KINDS)[number];
+  name: string;
+  status: 'pending' | 'ready' | 'failed';
+  key?: string;
+  contentType?: string;
+  width?: number;
+  height?: number;
+  bytes?: number;
+  focalX: number;
+  focalY: number;
+  facesFound?: number;
+  createdAt: string;
+  createdBy: string;
+}
+
+export const brandKitInputSchema = z.object({
+  name,
+  colors: roleColors,
+  logoLightId: assetId.optional(),
+  logoDarkId: assetId.optional(),
+  photoIds: z.array(assetId).max(40).default([]),
+  services: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(120),
+        description: z.string().max(300).optional(),
+      }),
+    )
+    .max(30)
+    .default([]),
+  offers: z
+    .array(z.object({ text: z.string().trim().min(1).max(200), sourceUrl: z.url().optional() }))
+    .max(30)
+    .default([]),
+  ctas: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
+});
+export type BrandKitInput = z.infer<typeof brandKitInputSchema>;
+export type BrandKit = BrandKitInput & {
+  kitId: string;
+  clientId: string;
+  updatedAt: string;
+  updatedBy: string;
+};
+
+const sizeKey = z.enum([
+  '300x250',
+  '728x90',
+  '300x600',
+  '336x280',
+  '320x50',
+  '1080x1080',
+  '1080x1350',
+  '1080x1920',
+]);
+const slotKey = z.string().regex(/^[a-z][a-z0-9-]{0,31}$/);
+const slotText = z.string().max(500);
+
+export const projectValuesSchema = z.object({
+  texts: z.record(slotKey, slotText),
+  textOverrides: z.partialRecord(sizeKey, z.record(slotKey, slotText)).optional(),
+  images: z.record(
+    slotKey,
+    z.object({
+      src: z.string().regex(/^assets\/[A-Za-z0-9-]{1,64}\/[a-f0-9]{16}\.(png|jpg|webp)$/),
+      focalX: z.number().min(0).max(1),
+      focalY: z.number().min(0).max(1),
+    }),
+  ),
+  colors: roleColors,
+});
+export type ProjectValues = z.infer<typeof projectValuesSchema>;
+
+export const projectCreateSchema = z.object({
+  name,
+  templateId: z.string().min(1).max(64),
+  brandKitId: z.string().min(1).max(64).optional(),
+});
+
+export const projectUpdateSchema = z.object({
+  revision: z.number().int().min(1),
+  name: name.optional(),
+  values: projectValuesSchema.optional(),
+});
+
+export interface Project {
+  projectId: string;
+  clientId: string;
+  name: string;
+  templateId: string;
+  templateVersion: number;
+  brandKitId?: string;
+  values: ProjectValues;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface ExportFile {
+  size: string;
+  name: string;
+  key: string;
+  bytes: number;
+  format: 'jpg' | 'png';
+  quality?: number;
+}
+
+export interface ExportRecord {
+  exportId: string;
+  projectId: string;
+  clientId: string;
+  status: 'rendering' | 'ready' | 'failed';
+  templateId: string;
+  templateVersion: number;
+  revision: number;
+  files?: ExportFile[];
+  zipKey?: string;
+  zipBytes?: number;
+  error?: string;
+  createdAt: string;
+  createdBy: string;
+  finishedAt?: string;
+}

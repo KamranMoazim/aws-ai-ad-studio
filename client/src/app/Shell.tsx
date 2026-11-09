@@ -14,9 +14,9 @@ interface ShellProps {
 export function Shell({ branding, me, route, onSignOut, children }: ShellProps) {
   const links = [
     {
-      label: 'Clients',
+      label: me.user.type === 'client' ? 'Ad sets' : 'Clients',
       to: href.clients(),
-      active: route.page === 'clients' || route.page === 'client',
+      active: route.page === 'clients' || route.page === 'client' || route.page === 'project',
       show: true,
     },
     {
@@ -60,7 +60,11 @@ export function Shell({ branding, me, route, onSignOut, children }: ShellProps) 
           </button>
         </div>
       </header>
-      <main className={route.page === 'template' ? 'shell-main wide' : 'shell-main'}>
+      <main
+        className={
+          route.page === 'template' || route.page === 'project' ? 'shell-main wide' : 'shell-main'
+        }
+      >
         {children}
       </main>
     </div>

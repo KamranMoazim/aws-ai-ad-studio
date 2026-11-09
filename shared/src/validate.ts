@@ -18,6 +18,7 @@ export interface Issue {
 const SLOT_KEY = /^[a-z][a-z0-9-]{0,31}$/;
 const ELEMENT_ID = /^[A-Za-z0-9_-]{1,40}$/;
 export const ASSET_KEY = /^template-assets\/[a-z0-9-]{1,64}\/[a-z0-9]{1,64}\.(png|jpg|webp)$/;
+export const CLIENT_ASSET_KEY = /^assets\/[A-Za-z0-9-]{1,64}\/[a-z0-9]{1,64}\.(png|jpg|webp)$/;
 const MAX_SLOTS = 20;
 const MAX_ELEMENTS = 80;
 const MAX_TEXT = 500;
