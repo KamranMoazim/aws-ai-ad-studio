@@ -1,6 +1,6 @@
 import { CfnOutput, Stack, type StackProps } from 'aws-cdk-lib';
 import type { Construct } from 'constructs';
-import { Ai, type ClaudeProvider } from './ai.js';
+import { Ai, DEFAULT_CLAUDE_MODELS, type ClaudeModels, type ClaudeProvider } from './ai.js';
 import { Auth } from './auth.js';
 import { Edge } from './edge.js';
 import { ExportPipeline } from './export-pipeline.js';
@@ -15,6 +15,7 @@ export interface AdStudioStackProps extends StackProps {
   clientDistPath: string;
   senderEmail?: string;
   claudeProvider: ClaudeProvider;
+  claudeModels?: Partial<ClaudeModels>;
   alertEmail?: string;
   waf: boolean;
   renderConcurrency?: number;
@@ -34,6 +35,10 @@ export class AdStudioStack extends Stack {
 
   constructor(scope: Construct, id: string, props: AdStudioStackProps) {
     super(scope, id, props);
+    const claude = {
+      provider: props.claudeProvider,
+      models: { ...DEFAULT_CLAUDE_MODELS[props.claudeProvider], ...props.claudeModels },
+    };
 
     this.storage = new Storage(this, 'Storage');
     this.auth = new Auth(this, 'Auth', { table: this.storage.table, appName: props.appName });
@@ -51,13 +56,13 @@ export class AdStudioStack extends Stack {
       table: this.storage.table,
       assetsBucket: this.storage.assetsBucket,
       scanAssets: this.media.scanAssets,
-      claude: { provider: props.claudeProvider },
+      claude,
     });
     this.ai = new Ai(this, 'Ai', {
       table: this.storage.table,
       assetsBucket: this.storage.assetsBucket,
       media: this.media,
-      claude: { provider: props.claudeProvider },
+      claude,
     });
     this.edge = props.waf ? new Edge(this, 'Edge', { userPool: this.auth.userPool }) : undefined;
     this.web = new Web(this, 'Web', {

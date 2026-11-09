@@ -20,7 +20,12 @@ export const CLAUDE_MODELS: Record<ClaudeProvider, Record<ClaudeRole, string>> =
   anthropic: { scan: 'claude-haiku-5-5', copy: 'claude-sonnet-5-5', draft: 'claude-haiku-5-5' },
 };
 
-const NO_EFFORT = /haiku-4-5/;
+const MODEL_SETTING: Record<ClaudeRole, string> = {
+  scan: 'CLAUDE_FAST_MODEL',
+  draft: 'CLAUDE_FAST_MODEL',
+  copy: 'CLAUDE_COPY_MODEL',
+};
+const NO_EFFORT = /claude-3|haiku-4|sonnet-4-(5|2025)|opus-4-(1|2025)/;
 let cached: Promise<ClaudeClient> | undefined;
 
 export function claudeProvider(): ClaudeProvider {
@@ -28,7 +33,8 @@ export function claudeProvider(): ClaudeProvider {
   return value === 'anthropic' || value === 'bedrock-legacy' ? value : 'bedrock';
 }
 
-export const claudeModel = (role: ClaudeRole) => CLAUDE_MODELS[claudeProvider()][role];
+export const claudeModel = (role: ClaudeRole) =>
+  process.env[MODEL_SETTING[role]] || CLAUDE_MODELS[claudeProvider()][role];
 
 export const supportsEffort = (model: string) => !NO_EFFORT.test(model);
 

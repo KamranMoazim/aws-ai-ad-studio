@@ -232,8 +232,8 @@ check(
 );
 check(
   'Claude on Bedrock is limited to the named models',
-  policies.includes('claude-haiku-4-5-20251001-v1:0') &&
-    policies.includes('claude-sonnet-4-6') &&
+  policies.includes('foundation-model/anthropic.claude-haiku-5-5') &&
+    policies.includes('foundation-model/anthropic.claude-sonnet-5-5') &&
     !policies.includes('foundation-model/anthropic.*'),
 );
 
@@ -296,9 +296,28 @@ const withoutWaf = Template.fromStack(
     appName: 'Acme Ads',
     clientDistPath: distPath,
     claudeProvider: 'bedrock-legacy',
+    claudeModels: { copy: 'global.anthropic.claude-opus-4-6-v1' },
     waf: false,
   }),
-).toJSON().Resources as Record<string, { Type: string }>;
+).toJSON().Resources as Record<string, { Type: string; Properties: any }>;
+const legacyPolicies = json(
+  Object.values(withoutWaf).filter((resource) => resource.Type === 'AWS::IAM::Policy'),
+);
+const legacyEnvironments = json(
+  Object.values(withoutWaf)
+    .filter((resource) => resource.Type === 'AWS::Lambda::Function')
+    .map((resource) => resource.Properties.Environment),
+);
+check(
+  'Claude models from infra/.env reach the functions and their permissions',
+  legacyEnvironments.includes('"CLAUDE_COPY_MODEL":"global.anthropic.claude-opus-4-6-v1"') &&
+    legacyEnvironments.includes(
+      '"CLAUDE_FAST_MODEL":"us.anthropic.claude-haiku-4-5-20251001-v1:0"',
+    ) &&
+    legacyPolicies.includes('foundation-model/anthropic.claude-opus-4-6-v1') &&
+    legacyPolicies.includes('inference-profile/global.anthropic.claude-opus-4-6-v1') &&
+    !legacyPolicies.includes('claude-sonnet-4-6'),
+);
 check(
   'WAF and budget can be left out',
   !Object.values(withoutWaf).some(

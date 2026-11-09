@@ -44,6 +44,8 @@ Set `CLAUDE_PROVIDER` in `infra/.env` and run `npm run infra:deploy`:
 - `bedrock-legacy`: Claude Haiku 4.5 and Sonnet 4.6 on Bedrock (current setting).
 - `anthropic`: the Claude API with the key from `npm run claude:key`.
 
+To change the models themselves, set `CLAUDE_FAST_MODEL` (website scans, drafts) and `CLAUDE_COPY_MODEL` (final ad copy) in `infra/.env` and run `npm run infra:deploy`; the deploy grants access to exactly those models. On Bedrock use an inference profile id such as `us.anthropic.claude-sonnet-4-6`. Models must support structured outputs (Claude 4.5 or newer).
+
 ## Users, roles and MFA
 
 - **Invite** users under Users (staff) or a client's Account tab (client users). Cognito emails a temporary password valid for 7 days; resend by disabling and re-inviting, or by `aws cognito-idp admin-create-user --message-action RESEND`.
