@@ -10,6 +10,8 @@ export type Route =
   | { page: 'users' }
   | { page: 'templates' }
   | { page: 'pricing' }
+  | { page: 'roles' }
+  | { page: 'audit' }
   | { page: 'transactions' }
   | { page: 'template'; templateId: string }
   | { page: 'settings' };
@@ -22,6 +24,8 @@ export const href = {
   users: () => '#/users',
   templates: () => '#/templates',
   pricing: () => '#/pricing',
+  roles: () => '#/roles',
+  audit: () => '#/audit',
   transactions: () => '#/transactions',
   template: (templateId: string) => `#/templates/${encodeURIComponent(templateId)}`,
   settings: () => '#/settings',
@@ -40,6 +44,12 @@ function parse(hash: string): Route {
   }
   if (parts[0] === 'projects' && parts[1]) {
     return { page: 'project', projectId: parts[1] };
+  }
+  if (parts[0] === 'roles') {
+    return { page: 'roles' };
+  }
+  if (parts[0] === 'audit') {
+    return { page: 'audit' };
   }
   if (parts[0] === 'pricing') {
     return { page: 'pricing' };

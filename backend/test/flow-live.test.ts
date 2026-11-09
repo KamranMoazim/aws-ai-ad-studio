@@ -2,6 +2,7 @@ import { check, finish } from './helpers.js';
 import { call, createTestUser, deleteCognitoUsers, run, testEmail, token } from './live.js';
 
 const { deletePartitions } = await import('./cleanup.js');
+const { getUser, saveUser } = await import('../src/data/users.js');
 const ASSIGNMENT_WAIT_MS = 70_000;
 
 const clientIds = (response: { body: any }) =>
@@ -59,6 +60,26 @@ try {
   });
   check('staff role refused for a client user', badRole.status === 400, badRole);
 
+  const noMfa = await createTestUser('nomfa', ['account-manager'], undefined, {
+    mfaEnabled: false,
+  });
+  userIds.push(noMfa.userId);
+  emails.push(noMfa.email);
+  const noMfaToken = await token(noMfa.email);
+  const blocked = await call(noMfaToken, 'GET', '/clients');
+  check(
+    'staff without two-step sign-in are sent to set it up',
+    blocked.status === 403 && blocked.body.error === 'mfa_required',
+    blocked,
+  );
+  check(
+    'staff without two-step sign-in can still load /me',
+    (await call(noMfaToken, 'GET', '/me')).status === 200,
+  );
+
+  // Stands in for the invited user finishing authenticator setup in the browser
+  const invited = await getUser(staffInvite.body.userId);
+  await saveUser({ ...invited!, mfaEnabled: true });
   const staff = await token(staffEmail);
   const client = await token(clientEmail);
 

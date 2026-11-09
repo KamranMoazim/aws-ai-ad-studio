@@ -9,6 +9,7 @@ import { copyObject, getJson, readUrl } from '../../core/storage.js';
 import { saveAsset } from '../../data/assets.js';
 import { recordAudit } from '../../data/audit.js';
 import { saveBrandKit } from '../../data/brand-kits.js';
+import { getSettings, limitsOf } from '../../data/settings.js';
 import {
   createScan,
   getScan,
@@ -24,7 +25,6 @@ import { permittedClient } from '../permit.js';
 
 export const scanRoutes = new Hono<AppEnv>();
 const sfnClient = new SFNClient({});
-export const SCANS_PER_DAY = 10;
 const RUNNING: Scan['status'][] = ['queued', 'browsing', 'processing', 'analyzing'];
 const SCAN_ID = /^\d{8}T\d{6}Z-[a-f0-9]{8}$/;
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -89,8 +89,9 @@ scanRoutes.post('/:id/scans', async (context) => {
   if (recent.some((scan) => RUNNING.includes(scan.status))) {
     throw new HttpError(409, 'conflict', 'A scan for this client is already running');
   }
-  if (recent.filter((scan) => scan.createdAt.startsWith(today)).length >= SCANS_PER_DAY) {
-    throw new HttpError(429, 'limit', `Up to ${SCANS_PER_DAY} scans a day per client`);
+  const { scansPerDay } = limitsOf(await getSettings());
+  if (recent.filter((scan) => scan.createdAt.startsWith(today)).length >= scansPerDay) {
+    throw new HttpError(429, 'limit', `Up to ${scansPerDay} scans a day per client`);
   }
   const now = new Date();
   const scanId = newScanId(now);
@@ -195,7 +196,9 @@ scanRoutes.post('/:id/scans/:scanId/brand-kit', async (context) => {
       contentType,
       width: size.width,
       height: size.height,
-      ...focal,
+      focalX: focal.focalX,
+      focalY: focal.focalY,
+      source: 'scan',
       createdAt: now,
       createdBy: userId,
     };

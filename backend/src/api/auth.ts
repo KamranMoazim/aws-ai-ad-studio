@@ -3,6 +3,7 @@ import type { MiddlewareHandler } from 'hono';
 import type { LambdaEvent } from 'hono/aws-lambda';
 import type { Principal } from '../authz/entities.js';
 import { HttpError } from '../core/http-error.js';
+import { cachedSettingsValue, staffMfaRequired } from '../data/settings.js';
 import { loadPrincipal } from '../data/users.js';
 
 export type AppEnv = {
@@ -44,6 +45,14 @@ export const requireUser: MiddlewareHandler<AppEnv> = async (context, next) => {
   const principal = await loadPrincipal(subject);
   if (!principal) {
     throw new HttpError(403, 'no_access', 'This account is not set up or has been disabled');
+  }
+  if (
+    principal.type === 'staff' &&
+    !principal.mfaEnabled &&
+    !context.req.path.startsWith('/me') &&
+    staffMfaRequired(await cachedSettingsValue())
+  ) {
+    throw new HttpError(403, 'mfa_required', 'Set up two-step sign-in to continue');
   }
   context.set('principal', principal);
   await next();

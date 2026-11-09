@@ -4,9 +4,12 @@ import { isSignedIn, signOut } from '../lib/auth';
 import { applyBranding, loadBranding } from '../lib/branding';
 import type { Branding, Me } from '../lib/types';
 import { ClientsPage } from '../pages/Clients';
+import { AuditPage } from '../pages/Audit';
 import { PricingPage } from '../pages/Pricing';
+import { RolesPage } from '../pages/Roles';
 import { SettingsPage } from '../pages/Settings';
 import { TransactionsPage } from '../pages/Transactions';
+import { MfaSetup } from '../pages/MfaSetup';
 import { SignIn } from '../pages/SignIn';
 import { TemplatesPage } from '../pages/Templates';
 import { UsersPage } from '../pages/Users';
@@ -98,6 +101,9 @@ export function App() {
   }
 
   const { me } = state;
+  if (me.mfa.required && !me.mfa.enabled) {
+    return <MfaSetup branding={branding} me={me} onDone={loadMe} onSignOut={leave} />;
+  }
   const loading = <p className="muted">Loading...</p>;
   return (
     <Shell branding={branding} me={me} route={route} onSignOut={leave}>
@@ -122,6 +128,8 @@ export function App() {
       {route.page === 'users' && <UsersPage me={me} />}
       {route.page === 'templates' && <TemplatesPage me={me} />}
       {route.page === 'pricing' && <PricingPage />}
+      {route.page === 'roles' && <RolesPage />}
+      {route.page === 'audit' && <AuditPage />}
       {route.page === 'transactions' && <TransactionsPage />}
       {route.page === 'template' && (
         <Suspense fallback={<p className="muted">Loading builder...</p>}>

@@ -60,6 +60,9 @@ export function SettingsPage({ onSaved }: { onSaved: () => void }) {
           colors: settings.colors,
           logoKey,
           supportEmail: settings.supportEmail || undefined,
+          safeZone: settings.safeZone,
+          limits: settings.limits,
+          requireStaffMfa: settings.requireStaffMfa,
         },
       });
       setSettings(await api<Settings>('/settings'));
@@ -125,6 +128,77 @@ export function SettingsPage({ onSaved }: { onSaved: () => void }) {
             </label>
           ))}
         </div>
+        <h2>Usage limits per client per day</h2>
+        {(
+          [
+            ['scansPerDay', 'Website scans'],
+            ['generationsPerDay', 'AI ad generations'],
+            ['imageEditsPerDay', 'AI image edits'],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key}>
+            {label}
+            <input
+              type="number"
+              min={0}
+              max={1000}
+              value={settings.limits?.[key] ?? ''}
+              onChange={(event) =>
+                setSettings({
+                  ...settings,
+                  limits: {
+                    scansPerDay: 10,
+                    generationsPerDay: 20,
+                    imageEditsPerDay: 20,
+                    ...settings.limits,
+                    [key]: Number(event.target.value),
+                  },
+                })
+              }
+            />
+          </label>
+        ))}
+        <h2>Meta 9:16 safe zone (% of the frame)</h2>
+        {(
+          [
+            ['top', 'Top'],
+            ['bottom', 'Bottom'],
+            ['sides', 'Each side'],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key}>
+            {label}
+            <input
+              type="number"
+              min={0}
+              max={45}
+              value={settings.safeZone?.[key] ?? ''}
+              onChange={(event) =>
+                setSettings({
+                  ...settings,
+                  safeZone: {
+                    top: 14,
+                    bottom: 35,
+                    sides: 6,
+                    ...settings.safeZone,
+                    [key]: Number(event.target.value),
+                  },
+                })
+              }
+            />
+          </label>
+        ))}
+        <h2>Security</h2>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={settings.requireStaffMfa !== false}
+            onChange={(event) =>
+              setSettings({ ...settings, requireStaffMfa: event.target.checked })
+            }
+          />
+          Staff must use two-step sign-in
+        </label>
         <div className="form-actions">
           <button className="button primary" disabled={busy}>
             Save

@@ -5,8 +5,11 @@ import {
   fetchAuthSession,
   getCurrentUser,
   resetPassword,
+  setUpTOTP,
   signIn,
   signOut,
+  updateMFAPreference,
+  verifyTOTPSetup,
 } from 'aws-amplify/auth';
 import type { AppConfig } from './config';
 
@@ -22,24 +25,41 @@ export function configureAuth(config: AppConfig): void {
   });
 }
 
-export type SignInStep = 'done' | 'new-password';
+export type SignInStep = 'done' | 'new-password' | 'totp';
 
-export async function startSignIn(email: string, password: string): Promise<SignInStep> {
-  const result = await signIn({ username: email, password });
-  if (result.nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
-    return 'new-password';
+function stepOf(result: Awaited<ReturnType<typeof signIn>>): SignInStep {
+  switch (result.nextStep.signInStep) {
+    case 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED':
+      return 'new-password';
+    case 'CONFIRM_SIGN_IN_WITH_TOTP_CODE':
+      return 'totp';
+    case 'DONE':
+      return 'done';
+    default:
+      throw new Error(`Unsupported sign-in step: ${result.nextStep.signInStep}`);
   }
-  if (!result.isSignedIn) {
-    throw new Error(`Unsupported sign-in step: ${result.nextStep.signInStep}`);
-  }
-  return 'done';
 }
 
-export async function setNewPassword(password: string): Promise<void> {
-  const result = await confirmSignIn({ challengeResponse: password });
-  if (!result.isSignedIn) {
-    throw new Error(`Unsupported sign-in step: ${result.nextStep.signInStep}`);
-  }
+export async function startSignIn(email: string, password: string): Promise<SignInStep> {
+  return stepOf(await signIn({ username: email, password }));
+}
+
+export async function setNewPassword(password: string): Promise<SignInStep> {
+  return stepOf(await confirmSignIn({ challengeResponse: password }));
+}
+
+export async function submitTotpCode(code: string): Promise<SignInStep> {
+  return stepOf(await confirmSignIn({ challengeResponse: code }));
+}
+
+export async function beginTotpSetup(appName: string, email: string): Promise<string> {
+  const details = await setUpTOTP();
+  return details.getSetupUri(appName, email).toString();
+}
+
+export async function finishTotpSetup(code: string): Promise<void> {
+  await verifyTOTPSetup({ code });
+  await updateMFAPreference({ totp: 'PREFERRED' });
 }
 
 export const requestPasswordReset = (email: string) => resetPassword({ username: email });

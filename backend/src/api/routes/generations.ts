@@ -1,10 +1,11 @@
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { HttpError } from '../../core/http-error.js';
-import { newId } from '../../core/ids.js';
+import { isId, newId } from '../../core/ids.js';
 import type { Project } from '../../core/schemas.js';
-import { listAssets } from '../../data/assets.js';
+import { getAsset, listAssets } from '../../data/assets.js';
+import { createImageJob, getImageJob, type ImageJob } from '../../data/image-jobs.js';
 import { recordAudit } from '../../data/audit.js';
 import { getBrandKit } from '../../data/brand-kits.js';
 import {
@@ -14,16 +15,14 @@ import {
   type Generation,
 } from '../../data/generations.js';
 import { createProject } from '../../data/projects.js';
+import { getSettings, limitsOf } from '../../data/settings.js';
 import { getTemplateMeta } from '../../data/templates.js';
-import type { ImageEditResult } from '../../media/image-edit.js';
 import type { AppEnv } from '../auth.js';
 import { permittedClient } from '../permit.js';
 import { withUrl } from './assets.js';
 
 export const generationRoutes = new Hono<AppEnv>();
 const lambdaClient = new LambdaClient({});
-export const GENERATIONS_PER_DAY = 20;
-export const IMAGE_EDITS_PER_DAY = 20;
 const GENERATION_ID = /^[a-f0-9]{16}$/;
 const ASPECT = z.enum(['9:16', '4:5', '1:1', '16:9']);
 
@@ -38,29 +37,48 @@ const generateSchema = z.object({
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-async function invokeImageEdit(payload: Record<string, unknown>): Promise<ImageEditResult> {
-  const response = await lambdaClient.send(
+async function startImageEdit(
+  context: Context<AppEnv>,
+  clientId: string,
+  op: ImageJob['op'],
+  payload: Record<string, unknown>,
+): Promise<ImageJob> {
+  const job: ImageJob = {
+    jobId: newId(),
+    clientId,
+    op,
+    status: 'running',
+    createdAt: new Date().toISOString(),
+    createdBy: context.get('principal').userId,
+  };
+  await createImageJob(job);
+  await lambdaClient.send(
     new InvokeCommand({
       FunctionName: process.env.IMAGE_EDIT_FUNCTION!,
-      Payload: JSON.stringify(payload),
+      InvocationType: 'Event',
+      Payload: JSON.stringify({
+        op,
+        clientId,
+        userId: job.createdBy,
+        jobId: job.jobId,
+        ...payload,
+      }),
     }),
   );
-  if (response.FunctionError) {
-    throw new Error(`image edit failed: ${response.FunctionError}`);
-  }
-  return JSON.parse(new TextDecoder().decode(response.Payload)) as ImageEditResult;
+  await recordAudit(job.createdBy, `image:${op}`, `CLIENT#${clientId}`, {
+    jobId: job.jobId,
+    ...payload,
+  });
+  return job;
 }
 
 async function checkImageLimit(clientId: string): Promise<void> {
   const edits = (await listAssets(clientId)).filter(
     (asset) => asset.source?.startsWith('ai-') && asset.createdAt.startsWith(today()),
   );
-  if (edits.length >= IMAGE_EDITS_PER_DAY) {
-    throw new HttpError(
-      429,
-      'limit',
-      `Up to ${IMAGE_EDITS_PER_DAY} AI image edits a day per client`,
-    );
+  const { imageEditsPerDay } = limitsOf(await getSettings());
+  if (edits.length >= imageEditsPerDay) {
+    throw new HttpError(429, 'limit', `Up to ${imageEditsPerDay} AI image edits a day per client`);
   }
 }
 
@@ -82,12 +100,9 @@ generationRoutes.post('/:id/generations', async (context) => {
     throw new HttpError(400, 'bad_request', 'serviceName: not a service of this brand kit');
   }
   const recent = await listGenerations(client.clientId);
-  if (recent.filter((item) => item.createdAt.startsWith(today())).length >= GENERATIONS_PER_DAY) {
-    throw new HttpError(
-      429,
-      'limit',
-      `Up to ${GENERATIONS_PER_DAY} AI generations a day per client`,
-    );
+  const { generationsPerDay } = limitsOf(await getSettings());
+  if (recent.filter((item) => item.createdAt.startsWith(today())).length >= generationsPerDay) {
+    throw new HttpError(429, 'limit', `Up to ${generationsPerDay} AI generations a day per client`);
   }
   const now = new Date().toISOString();
   const generation: Generation = {
@@ -166,6 +181,17 @@ generationRoutes.post('/:id/generations/:generationId/variants/:index/project', 
   return context.json(project, 201);
 });
 
+generationRoutes.get('/:id/images/jobs/:jobId', async (context) => {
+  const client = await permittedClient(context, 'client:read');
+  const jobId = context.req.param('jobId');
+  const job = GENERATION_ID.test(jobId) ? await getImageJob(client.clientId, jobId) : undefined;
+  if (!job) {
+    throw new HttpError(404, 'not_found', 'Image job not found');
+  }
+  const asset = job.assetId ? await getAsset(client.clientId, job.assetId) : undefined;
+  return context.json({ job, asset: asset ? await withUrl(asset) : undefined });
+});
+
 generationRoutes.post('/:id/images/:assetId/:op', async (context) => {
   const client = await permittedClient(context, 'brandkit:edit');
   const op = context.req.param('op');
@@ -173,23 +199,15 @@ generationRoutes.post('/:id/images/:assetId/:op', async (context) => {
     throw new HttpError(404, 'not_found', 'Unknown image operation');
   }
   await checkImageLimit(client.clientId);
+  const assetId = context.req.param('assetId');
+  const source = isId(assetId) ? await getAsset(client.clientId, assetId) : undefined;
+  if (!source || source.status !== 'ready') {
+    throw new HttpError(404, 'not_found', 'Image not found');
+  }
   const body =
     op === 'outpaint' ? z.object({ aspect: ASPECT }).parse(await context.req.json()) : {};
-  const result = await invokeImageEdit({
-    op,
-    clientId: client.clientId,
-    assetId: context.req.param('assetId'),
-    userId: context.get('principal').userId,
-    ...body,
-  });
-  if (!result.ok) {
-    throw new HttpError(400, 'image_edit_failed', result.message);
-  }
-  await recordAudit(context.get('principal').userId, `image:${op}`, `CLIENT#${client.clientId}`, {
-    from: context.req.param('assetId'),
-    assetId: result.asset.assetId,
-  });
-  return context.json(await withUrl(result.asset), 201);
+  const job = await startImageEdit(context, client.clientId, op, { assetId, ...body });
+  return context.json(job, 202);
 });
 
 generationRoutes.post('/:id/images/background', async (context) => {
@@ -202,22 +220,9 @@ generationRoutes.post('/:id/images/background', async (context) => {
       aspect: ASPECT,
     })
     .parse(await context.req.json());
-  const result = await invokeImageEdit({
-    op: 'background',
-    clientId: client.clientId,
-    userId: context.get('principal').userId,
-    ...input,
-  });
-  if (!result.ok) {
-    throw new HttpError(400, 'image_edit_failed', result.message);
+  if (!(await getBrandKit(client.clientId, input.brandKitId))) {
+    throw new HttpError(400, 'bad_request', 'brandKitId: brand kit not found');
   }
-  await recordAudit(
-    context.get('principal').userId,
-    'image:background',
-    `CLIENT#${client.clientId}`,
-    {
-      assetId: result.asset.assetId,
-    },
-  );
-  return context.json(await withUrl(result.asset), 201);
+  const job = await startImageEdit(context, client.clientId, 'background', input);
+  return context.json(job, 202);
 });

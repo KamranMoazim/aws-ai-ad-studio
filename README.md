@@ -4,7 +4,9 @@ Branded AI ad creative for display and Meta ads, on AWS.
 
 AdStudio is a white-labelled web app where an agency's clients sign in and produce ready-to-upload ads in 8 sizes, either from a locked template or from their website. Agency staff manage clients, templates, pricing and permissions in an admin area. One deployment serves one agency, in the agency's own AWS account.
 
-> Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing. Phase 3 adds the client side: uploads, brand kits, the 8-size ad editor, server-side export and the archive. Phase 4 adds payments: prices, Stripe Checkout, webhooks, transactions, refunds and emailed download links. Phase 5 adds the website scan: URL in, reviewed brand kit out. Phase 6 adds AI ad generation and AI image helpers.
+> Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing. Phase 3 adds the client side: uploads, brand kits, the 8-size ad editor, server-side export and the archive. Phase 4 adds payments: prices, Stripe Checkout, webhooks, transactions, refunds and emailed download links. Phase 5 adds the website scan: URL in, reviewed brand kit out. Phase 6 adds AI ad generation and AI image helpers. Phase 7 hardens it for handover: WAF, alarms, budget, dead-letter redrive, configurable limits, staff MFA, roles and audit screens, and documentation.
+
+More documentation: [ARCHITECTURE.md](ARCHITECTURE.md) (how it fits together and how it differs from the original plan), [RUNBOOK.md](RUNBOOK.md) (operations), [docs/adr](docs/adr) (decision records), [docs/template-authoring.md](docs/template-authoring.md) (for designers) and [docs/openapi.json](docs/openapi.json) (generated with `npm run openapi`).
 
 ## How it works (phase 1)
 
@@ -116,11 +118,38 @@ Prompts, structured outputs and validation are the same for all three. IAM allow
 
 The client picks a variant and edits it like any ad set. Its first export is charged as `ai-set` when payment is required.
 
-**Image helpers** (Stability AI on Bedrock, behind one `ImageService` adapter because the Bedrock image line-up changes): **Remove background** (logos and product photos), **Extend** a photo to 9:16, 4:5 or 1:1 (Outpaint, keeping the focal point), and **Generate background** (Style Guide with a swatch of the brand colours as the style reference; never people, faces, products, text or logos; falls back to a brand-colour gradient if the model is unavailable). Results are new assets marked AI edited or AI generated, with the source asset recorded. Limits: 20 generations and 20 image edits a day per client.
+**Image helpers** (Stability AI on Bedrock, behind one `ImageService` adapter because the Bedrock image line-up changes): **Remove background** (logos and product photos), **Extend** a photo to 9:16, 4:5 or 1:1 (Outpaint, keeping the focal point), and **Generate background** (Style Guide with a swatch of the brand colours as the style reference; never people, faces, products, text or logos; falls back to a brand-colour gradient if the model is unavailable). Edits run as background jobs (Stability calls can take longer than API Gateway's 30-second limit) that the app polls; results are new assets marked AI edited or AI generated, with the source asset recorded. Limits: 20 generations and 20 image edits a day per client.
 
 | Entity | PK | SK |
 | --- | --- | --- |
 | Generation | `CLIENT#<id>` | `GEN#<id>` |
+
+## Hardening and handover (phase 7)
+
+- **Edge:** AWS WAF on CloudFront (Amazon IP reputation list, common rule set, known bad inputs, 100 requests per 5 minutes per IP on `/d/*`, 2,000 overall) and a regional WAF on the Cognito user pool (IP reputation, 300 sign-in requests per 5 minutes per IP). WAF cannot attach to an HTTP API, so the API is throttled at the stage (burst 100, 50 requests a second) and scans, generations and image edits have daily per-client limits. `WAF=false` in `infra/.env` removes the web ACLs (about $10-18 a month).
+- **Staff MFA:** staff must set up an authenticator app (TOTP) at their next sign-in; until they do, the API answers everything except `/me` with `mfa_required`. The flag is only set after Cognito confirms TOTP is active. Super Admins can turn the requirement off in Settings.
+- **Settings:** daily limits (scans, AI generations, AI image edits per client), the 9:16 safe-zone margins and the MFA requirement, all without a deploy.
+- **Roles screen:** a permission checklist per role (agency-wide, all clients, assigned clients or own client), new roles, and deletion of unused custom roles.
+- **Audit log screen:** every write by month, with who did it.
+- **Operations:** an SNS alerts topic (`ALERT_EMAIL`), CloudWatch alarms for Lambda errors and throttles, failed exports and scans, API 5xx and dead letters, a $50 monthly AWS Budgets alert, a dead-letter queue for failed AI generations with `npm run dlq:redrive`, render concurrency per export set by `RENDER_CONCURRENCY` (4 while the account's Lambda concurrency limit is 10), 14-day logs, and S3 lifecycle rules (uploads 1 day, scan files 30 days, exports to Infrequent Access after 90 days).
+- **Optional custom domain:** `DOMAIN_NAME`, `HOSTED_ZONE_ID` and `HOSTED_ZONE_NAME` add an ACM certificate, the CloudFront alias and a Route 53 record.
+- **Seed data:** `npm run seed:demo` publishes the sample templates and creates a demo client with a brand kit.
+
+## Costs
+
+Estimates from published prices (late 2026); check current prices before relying on them.
+
+| Item | Estimate |
+| --- | --- |
+| Idle stack without WAF | about $1 a month (S3, CloudWatch logs, Route 53 if a domain is used) |
+| WAF (2 web ACLs and their rules) | about $10-18 a month plus $0.60 per million requests |
+| Website scan (6 pages, about 40 images, AgentCore Browser time, Claude Haiku) | about $0.01-0.04 |
+| AI generation, 3 variants (Claude Sonnet copy, fit checks in the render Lambda) | about $0.05-0.15 |
+| AI image edit (Stability on Bedrock) | about $0.04-0.08 each |
+| Export of 8 sizes (render Lambda, zip) | under $0.01 |
+| Agency with 50 clients: 500 ad sets, 200 scans and 300 image edits a month | roughly $50-100 on AWS, plus Stripe fees on what is charged |
+
+Guardrails: daily per-client limits in Settings, the $50 budget alert, render concurrency per export, 14-day logs and S3 lifecycle rules.
 
 ## Roles and scopes
 
@@ -164,10 +193,10 @@ Prerequisites: an AWS account in `us-east-1` with CDK bootstrapped and Bedrock a
 
 ```bash
 npm run install:all
-cp infra/.env.example infra/.env          # optional: APP_NAME used before branding is set
-npm run infra:deploy                      # builds the client and deploys; writes infra/cdk-outputs.json
+cp infra/.env.example infra/.env          # set ALERT_EMAIL, CLAUDE_PROVIDER and the other options described there
+npm run infra:deploy                      # builds the client and the render container (needs Docker), deploys
 npm run bootstrap -- you@example.com      # seeds the 5 roles and invites you as Super Admin
-npm run seed:templates                    # 3 sample templates as drafts; open, lint and publish them
+npm run seed:demo                         # optional: publishes the sample templates, demo client and brand kit
 ```
 
 Open the `SiteUrl` output and sign in with the temporary password from the email. Set `ADSTUDIO_PASSWORD` before `bootstrap` to skip the email and set a password directly. `npm run bootstrap -- you@example.com --reset-roles` rewrites the 5 starting roles and their policies.
@@ -218,10 +247,14 @@ Local development: `npm run client:config` writes `client/public/config.json` fr
 | `GET` | `/clients/:id/scans`, `/clients/:id/scans/:scanId` | `client:read`; result with preview URLs when ready |
 | `POST` | `/clients/:id/scans/:scanId/brand-kit` | `brandkit:edit`; saves the reviewed draft |
 | `POST` | `/clients/:id/generations` | `project:create`; `{ brandKitId, channel, serviceName?, offerText?, notes?, quality }` |
+| `POST` | `/me/mfa` | signed in; records TOTP after Cognito confirms it |
+| `DELETE` | `/roles/:id` | `role:manage`; custom roles nobody holds |
+| `GET` | `/audit?month=YYYY-MM&userId=` | `audit:read` |
 | `GET` | `/clients/:id/generations/:generationId` | `client:read`; status and the 3 variants |
 | `POST` | `/clients/:id/generations/:generationId/variants/:index/project` | `project:create`; opens a variant as an ad set |
-| `POST` | `/clients/:id/images/:assetId/remove-bg`, `/clients/:id/images/:assetId/outpaint` | `brandkit:edit`; outpaint takes `{ aspect }` |
-| `POST` | `/clients/:id/images/background` | `brandkit:edit`; `{ brandKitId, style, aspect }` |
+| `POST` | `/clients/:id/images/:assetId/remove-bg`, `/clients/:id/images/:assetId/outpaint` | `brandkit:edit`; outpaint takes `{ aspect }`; returns a job (`202`) |
+| `POST` | `/clients/:id/images/background` | `brandkit:edit`; `{ brandKitId, style, aspect }`; returns a job (`202`) |
+| `GET` | `/clients/:id/images/jobs/:jobId` | `client:read`; job status and the new asset when ready |
 
 ## Tests
 
@@ -250,6 +283,7 @@ npm run test:live        # against the deployed stack (needs bootstrap first)
 - **Scan eval (live):** the same 10 sites uploaded under `scan-fixtures/` and scanned through the deployed pipeline (AgentCore Browser, media container, Claude Haiku 5.5). Exit check: correct logo for at least 8, usable palette for all 10, no offer whose quote is not on the site; also a reviewed draft saves as a brand kit, an invented offer cannot be saved, client users cannot scan, private addresses and missing ownership confirmation are refused.
 - **Generation (offline):** unsourced numbers, currency, percentages, free, superlatives and banned phrases flagged and offer-backed ones allowed; copy applied with valid per-size overrides; fit and claim problems mapped to slots and turned into `[confirm]`; template choice by channel, fillable slots and offer; the text colour fixed without touching brand colours; the dark-background logo chosen on a dark header; outpaint geometry and caps.
 - **Generation (live, exit check):** a fixture website is scanned and saved as a brand kit, 3 variants are generated, and each is opened as an ad set and re-checked independently: no overflow at any size with the real fonts, no unsourced claim at any size. Also remove background, extend to 9:16, generate background, client users cannot use AI image edits, and offers outside the brand kit are refused.
+- **Hardening (live):** staff without MFA can read `/me` but are refused elsewhere, MFA cannot be marked on without a real authenticator, the audit log lists entries and is refused without `audit:read`, settings expose limits, MFA and the safe zone, and a custom role is created, listed and deleted while starting roles cannot be.
 - **Infra:** invite-only pool, SRP only for the web client, 15-minute access tokens, strict policy store, only `/health` and `/branding` public, private encrypted buckets, Node 24 arm64, no VPC or NAT.
 
 ## Build log
@@ -262,6 +296,7 @@ npm run test:live        # against the deployed stack (needs bootstrap first)
 | 4 | Payments: price catalogue and overrides, Stripe Checkout, signed and de-duplicated webhooks, transactions and CSV, refunds that revoke downloads, preview watermark, emailed download links |
 | 5 | Website scan: AgentCore Browser capture, guarded fetcher, logo ranking and SVG sanitising, palette, photo de-duplication and focal points, Claude Haiku 5.5 logo pick, photo labels and quoted-offer extraction, review and save as brand kit |
 | 6 | AI generation and image helpers: Claude provider switch (Bedrock or API key), template picking, Claude Sonnet 5.5 copy within per-size limits, real-font fit check and unsourced-claim check with one retry, remove background, outpaint, brand-colour backgrounds |
+| 7 | Hardening and handover: WAF on CloudFront and sign-in, API throttling, alarms, budget, generation dead-letter queue and redrive, configurable limits, staff MFA, roles and audit screens, optional custom domain, architecture, runbook, ADRs, template guide, OpenAPI, demo seed |
 
 ## Tear down
 

@@ -1,5 +1,6 @@
 import {
   AdminCreateUserCommand,
+  AdminGetUserCommand,
   AdminDisableUserCommand,
   AdminEnableUserCommand,
   CognitoIdentityProviderClient,
@@ -36,4 +37,11 @@ export async function inviteCognitoUser(email: string): Promise<string> {
 export async function setCognitoUserEnabled(email: string, enabled: boolean): Promise<void> {
   const Command = enabled ? AdminEnableUserCommand : AdminDisableUserCommand;
   await cognitoClient.send(new Command({ UserPoolId: userPoolId(), Username: email }));
+}
+
+export async function hasTotp(email: string): Promise<boolean> {
+  const response = await cognitoClient.send(
+    new AdminGetUserCommand({ UserPoolId: userPoolId(), Username: email }),
+  );
+  return (response.UserMFASettingList ?? []).includes('SOFTWARE_TOKEN_MFA');
 }

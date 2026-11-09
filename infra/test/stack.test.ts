@@ -23,6 +23,8 @@ const stack = new AdStudioStack(new App(), 'TestStack', {
   appName: 'Acme Ads',
   clientDistPath: distPath,
   claudeProvider: 'bedrock',
+  waf: true,
+  alertEmail: 'alerts@example.com',
 });
 const template = Template.fromStack(stack);
 const resources = template.toJSON().Resources as Record<
@@ -233,6 +235,76 @@ check(
   policies.includes('claude-haiku-4-5-20251001-v1:0') &&
     policies.includes('claude-sonnet-4-6') &&
     !policies.includes('foundation-model/anthropic.*'),
+);
+
+const acls = ofType('AWS::WAFv2::WebACL');
+const siteAcl = acls.find((acl) => acl.Properties.Scope === 'CLOUDFRONT');
+check(
+  'CloudFront WAF uses managed rules and rate-limits download links',
+  [
+    'AWSManagedRulesCommonRuleSet',
+    'AWSManagedRulesKnownBadInputsRuleSet',
+    'AWSManagedRulesAmazonIpReputationList',
+  ].every((name) => json(siteAcl?.Properties.Rules ?? []).includes(name)) &&
+    json(siteAcl?.Properties.Rules ?? []).includes('"SearchString":"/d/"'),
+);
+check(
+  'the distribution is behind the WAF',
+  Boolean(distribution?.Properties.DistributionConfig?.WebACLId),
+);
+check(
+  'sign-in is rate limited by a regional WAF on the user pool',
+  acls.some((acl) => acl.Properties.Scope === 'REGIONAL') &&
+    ofType('AWS::WAFv2::WebACLAssociation').length === 1,
+);
+const alarmNames = ofType('AWS::CloudWatch::Alarm').map((alarm) => json(alarm.Properties));
+check(
+  'alarms cover Lambda errors, throttles, failed exports and scans, API 5xx and dead letters',
+  alarmNames.length >= 15 &&
+    ['Throttles', 'ExecutionsFailed', '5xx', 'ApproximateNumberOfMessagesVisible'].every((name) =>
+      alarmNames.some((alarm) => alarm.includes(name)),
+    ),
+  alarmNames.length,
+);
+const [budget] = ofType('AWS::Budgets::Budget');
+check('a $50 monthly budget alerts by email', budget?.Properties.Budget.BudgetLimit.Amount === 50);
+check(
+  'failed async generations go to a dead-letter queue',
+  json(ofType('AWS::Lambda::EventInvokeConfig')).includes('OnFailure'),
+);
+const [stage] = ofType('AWS::ApiGatewayV2::Stage');
+check(
+  'the API is throttled',
+  stage?.Properties.DefaultRouteSettings?.ThrottlingRateLimit > 0 &&
+    stage?.Properties.DefaultRouteSettings?.ThrottlingBurstLimit > 0,
+);
+const lifecycle = json(
+  ofType('AWS::S3::Bucket').map((item) => item.Properties.LifecycleConfiguration ?? {}),
+);
+check(
+  'scan files expire after 30 days',
+  lifecycle.includes('"Prefix":"scans/"') && lifecycle.includes('"ExpirationInDays":30'),
+);
+check(
+  'renders per export are capped for the account concurrency limit',
+  /MaxConcurrency\\+":4[,}]/.test(json(stateMachine?.Properties ?? {})),
+);
+
+const withoutWaf = Template.fromStack(
+  new AdStudioStack(new App(), 'NoWafStack', {
+    env: { account: '111111111111', region: 'us-east-1' },
+    appName: 'Acme Ads',
+    clientDistPath: distPath,
+    claudeProvider: 'bedrock-legacy',
+    waf: false,
+  }),
+).toJSON().Resources as Record<string, { Type: string }>;
+check(
+  'WAF and budget can be left out',
+  !Object.values(withoutWaf).some(
+    (resource) =>
+      resource.Type === 'AWS::WAFv2::WebACL' || resource.Type === 'AWS::Budgets::Budget',
+  ),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

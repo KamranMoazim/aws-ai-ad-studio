@@ -1,0 +1,2581 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AdStudio API",
+    "version": "1.0.0",
+    "description": "Generated from the Hono routes by `npm run openapi`. Permissions per route are in README.md."
+  },
+  "components": {
+    "securitySchemes": {
+      "cognito": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Cognito access token"
+      }
+    }
+  },
+  "paths": {
+    "/audit": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "GET /audit",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/branding": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "GET /branding",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients": {
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "GET /clients",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "POST /clients",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}": {
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "GET /clients/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "PUT /clients/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/assets": {
+      "get": {
+        "tags": [
+          "Brand kits and assets"
+        ],
+        "summary": "GET /clients/{id}/assets",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/assets/{assetId}": {
+      "put": {
+        "tags": [
+          "Brand kits and assets"
+        ],
+        "summary": "PUT /clients/{id}/assets/{assetId}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/assets/{assetId}/complete": {
+      "post": {
+        "tags": [
+          "Brand kits and assets"
+        ],
+        "summary": "POST /clients/{id}/assets/{assetId}/complete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/assets/upload-url": {
+      "post": {
+        "tags": [
+          "Brand kits and assets"
+        ],
+        "summary": "POST /clients/{id}/assets/upload-url",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/brand-kits": {
+      "get": {
+        "tags": [
+          "Brand kits and assets"
+        ],
+        "summary": "GET /clients/{id}/brand-kits",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Brand kits and assets"
+        ],
+        "summary": "POST /clients/{id}/brand-kits",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/brand-kits/{kitId}": {
+      "put": {
+        "tags": [
+          "Brand kits and assets"
+        ],
+        "summary": "PUT /clients/{id}/brand-kits/{kitId}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kitId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/generations": {
+      "post": {
+        "tags": [
+          "AI generation"
+        ],
+        "summary": "POST /clients/{id}/generations",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/generations/{generationId}": {
+      "get": {
+        "tags": [
+          "AI generation"
+        ],
+        "summary": "GET /clients/{id}/generations/{generationId}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "generationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/generations/{generationId}/variants/{index}/project": {
+      "post": {
+        "tags": [
+          "AI generation"
+        ],
+        "summary": "POST /clients/{id}/generations/{generationId}/variants/{index}/project",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "generationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/images/{assetId}/{op}": {
+      "post": {
+        "tags": [
+          "AI generation"
+        ],
+        "summary": "POST /clients/{id}/images/{assetId}/{op}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "op",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/images/background": {
+      "post": {
+        "tags": [
+          "AI generation"
+        ],
+        "summary": "POST /clients/{id}/images/background",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/images/jobs/{jobId}": {
+      "get": {
+        "tags": [
+          "AI generation"
+        ],
+        "summary": "GET /clients/{id}/images/jobs/{jobId}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/prices": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "GET /clients/{id}/prices",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/prices/{taskType}": {
+      "put": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "PUT /clients/{id}/prices/{taskType}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "DELETE /clients/{id}/prices/{taskType}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/projects": {
+      "get": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "GET /clients/{id}/projects",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "POST /clients/{id}/projects",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/scans": {
+      "post": {
+        "tags": [
+          "Website scan"
+        ],
+        "summary": "POST /clients/{id}/scans",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Website scan"
+        ],
+        "summary": "GET /clients/{id}/scans",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/scans/{scanId}": {
+      "get": {
+        "tags": [
+          "Website scan"
+        ],
+        "summary": "GET /clients/{id}/scans/{scanId}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/scans/{scanId}/brand-kit": {
+      "post": {
+        "tags": [
+          "Website scan"
+        ],
+        "summary": "POST /clients/{id}/scans/{scanId}/brand-kit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/staff": {
+      "put": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "PUT /clients/{id}/staff",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/staff-options": {
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "GET /clients/{id}/staff-options",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/templates": {
+      "get": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "GET /clients/{id}/templates",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/templates/{templateId}": {
+      "get": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "GET /clients/{id}/templates/{templateId}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/clients/{id}/transactions": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "GET /clients/{id}/transactions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/d/{token}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "GET /d/{token}",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "GET /health",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "GET /me",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/me/mfa": {
+      "post": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "POST /me/mfa",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/prices": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "GET /prices",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/prices/{taskType}": {
+      "put": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "PUT /prices/{taskType}",
+        "parameters": [
+          {
+            "name": "taskType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "DELETE /prices/{taskType}",
+        "parameters": [
+          {
+            "name": "taskType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/projects/{id}": {
+      "get": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "GET /projects/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "PUT /projects/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/projects/{id}/duplicate": {
+      "post": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "POST /projects/{id}/duplicate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/projects/{id}/export": {
+      "post": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "POST /projects/{id}/export",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/projects/{id}/exports": {
+      "get": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "GET /projects/{id}/exports",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/projects/{id}/exports/{exportId}": {
+      "get": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "GET /projects/{id}/exports/{exportId}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/projects/{id}/exports/{exportId}/email": {
+      "post": {
+        "tags": [
+          "Ad sets"
+        ],
+        "summary": "POST /projects/{id}/exports/{exportId}/email",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/roles": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "GET /roles",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/roles/{id}": {
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "PUT /roles/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "DELETE /roles/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/settings": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "GET /settings",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "PUT /settings",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/settings/logo-upload-url": {
+      "post": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "POST /settings/logo-upload-url",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/templates": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "GET /templates",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "POST /templates",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/templates/{id}": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "GET /templates/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "PUT /templates/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/templates/{id}/asset-upload-url": {
+      "post": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "POST /templates/{id}/asset-upload-url",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/templates/{id}/publish": {
+      "post": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "POST /templates/{id}/publish",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/templates/{id}/versions": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "GET /templates/{id}/versions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/templates/{id}/versions/{version}": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "GET /templates/{id}/versions/{version}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/transactions": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "GET /transactions",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "GET /users",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "POST /users",
+        "parameters": [],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "PUT /users/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "cognito": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input: { error, message, details? }"
+          },
+          "401": {
+            "description": "Missing or expired token"
+          },
+          "403": {
+            "description": "Not allowed by the caller's roles (or two-step sign-in not set up)"
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller"
+          }
+        }
+      }
+    },
+    "/webhooks/stripe": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "POST /webhooks/stripe (separate Lambda; Stripe signature required)",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Received"
+          },
+          "400": {
+            "description": "Bad signature"
+          }
+        }
+      }
+    }
+  }
+}

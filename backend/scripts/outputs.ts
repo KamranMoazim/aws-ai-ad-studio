@@ -16,6 +16,9 @@ export interface StackOutputs {
   ExportStateMachineArn: string;
   StripeWebhookUrl: string;
   ScanStateMachineArn: string;
+  GenerateDlqUrl: string;
+  GenerateFunctionName: string;
+  AlertTopicArn: string;
 }
 
 export function loadOutputs(): StackOutputs {

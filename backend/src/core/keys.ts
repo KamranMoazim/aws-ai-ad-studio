@@ -62,3 +62,5 @@ export const scanFolder = (clientId: string, scanId: string) => `scans/${clientI
 
 export const GENERATION_PREFIX = 'GEN#';
 export const generationSk = (generationId: string) => `${GENERATION_PREFIX}${generationId}`;
+
+export const imageJobSk = (jobId: string) => `IMGJOB#${jobId}`;

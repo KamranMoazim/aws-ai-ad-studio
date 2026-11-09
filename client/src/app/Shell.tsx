@@ -44,6 +44,18 @@ export function Shell({ branding, me, route, onSignOut, children }: ShellProps) 
       show: me.can.includes('txn:read'),
     },
     {
+      label: 'Roles',
+      to: href.roles(),
+      active: route.page === 'roles',
+      show: me.can.includes('role:manage'),
+    },
+    {
+      label: 'Audit',
+      to: href.audit(),
+      active: route.page === 'audit',
+      show: me.can.includes('audit:read'),
+    },
+    {
       label: 'Settings',
       to: href.settings(),
       active: route.page === 'settings',

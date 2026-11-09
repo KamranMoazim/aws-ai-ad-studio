@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { deletePolicies, createRolePolicies } from '../authz/store.js';
 import { ORG_PK, ROLE_PREFIX, roleSk } from '../core/keys.js';
 import type { Role, RoleInput } from '../core/schemas.js';
@@ -43,4 +43,11 @@ export async function saveRole(roleId: string, input: RoleInput, builtIn = false
   }
   await deletePolicies(existing?.policyIds ?? []);
   return role;
+}
+
+export async function deleteRole(role: Role): Promise<void> {
+  await documentClient.send(
+    new DeleteCommand({ TableName: TABLE_NAME, Key: { PK: ORG_PK, SK: roleSk(role.roleId) } }),
+  );
+  await deletePolicies(role.policyIds);
 }

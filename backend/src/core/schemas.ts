@@ -32,6 +32,14 @@ export const settingsInputSchema = z.object({
       sides: z.number().min(0).max(45),
     })
     .optional(),
+  limits: z
+    .object({
+      scansPerDay: z.number().int().min(0).max(1000),
+      generationsPerDay: z.number().int().min(0).max(1000),
+      imageEditsPerDay: z.number().int().min(0).max(1000),
+    })
+    .optional(),
+  requireStaffMfa: z.boolean().optional(),
 });
 export type SettingsInput = z.infer<typeof settingsInputSchema>;
 export type Settings = SettingsInput & { updatedAt: string };
@@ -91,6 +99,7 @@ export interface User {
   roleIds: string[];
   clientId?: string;
   status: 'active' | 'disabled';
+  mfaEnabled?: boolean;
   createdAt: string;
 }
 

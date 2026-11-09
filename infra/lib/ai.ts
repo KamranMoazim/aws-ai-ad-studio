@@ -2,8 +2,10 @@ import { Duration, Stack } from 'aws-cdk-lib';
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as destinations from 'aws-cdk-lib/aws-lambda-destinations';
 import type { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import type * as s3 from 'aws-cdk-lib/aws-s3';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import { appFunction, logGroup } from './function.js';
 import { CLIENT_ASSETS_PREFIX, type Media } from './media.js';
@@ -61,6 +63,7 @@ export interface AiProps {
 export class Ai extends Construct {
   readonly generate: NodejsFunction;
   readonly imageEdit: lambda.DockerImageFunction;
+  readonly deadLetterQueue: sqs.Queue;
 
   constructor(scope: Construct, id: string, props: AiProps) {
     super(scope, id);
@@ -76,6 +79,14 @@ export class Ai extends Construct {
       timeout: Duration.minutes(5),
       memorySize: 1024,
     });
+    this.deadLetterQueue = new sqs.Queue(this, 'GenerateDeadLetters', {
+      retentionPeriod: Duration.days(14),
+      enforceSSL: true,
+    });
+    this.generate.configureAsyncInvoke({
+      retryAttempts: 1,
+      onFailure: new destinations.SqsDestination(this.deadLetterQueue),
+    });
     props.table.grantReadWriteData(this.generate);
     props.assetsBucket.grantRead(this.generate, 'templates/*');
     props.media.render.grantInvoke(this.generate);
@@ -85,13 +96,14 @@ export class Ai extends Construct {
       code: props.media.image('image-edit.handler'),
       architecture: lambda.Architecture.X86_64,
       memorySize: 2048,
-      timeout: Duration.seconds(60),
+      timeout: Duration.seconds(120),
       environment: {
         TABLE_NAME: props.table.tableName,
         ASSETS_BUCKET: props.assetsBucket.bucketName,
       },
       logGroup: logGroup(this, 'ImageEditLogs'),
     });
+    this.imageEdit.configureAsyncInvoke({ retryAttempts: 0 });
     props.table.grantReadWriteData(this.imageEdit);
     props.assetsBucket.grantReadWrite(this.imageEdit, `${CLIENT_ASSETS_PREFIX}*`);
     this.imageEdit.addToRolePolicy(

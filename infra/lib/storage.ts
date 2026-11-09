@@ -5,6 +5,7 @@ import { Construct } from 'constructs';
 
 export const UPLOAD_DAYS = 1;
 export const EXPORT_IA_DAYS = 90;
+export const SCAN_DAYS = 30;
 
 export class Storage extends Construct {
   readonly table: dynamodb.TableV2;
@@ -39,6 +40,8 @@ export class Storage extends Construct {
       autoDeleteObjects: true,
       lifecycleRules: [
         { prefix: 'uploads/', expiration: Duration.days(UPLOAD_DAYS) },
+        { prefix: 'scans/', expiration: Duration.days(SCAN_DAYS) },
+        { prefix: 'scan-fixtures/', expiration: Duration.days(UPLOAD_DAYS) },
         {
           prefix: 'exports/',
           transitions: [

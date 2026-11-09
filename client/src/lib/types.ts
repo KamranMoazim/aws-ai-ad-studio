@@ -27,6 +27,7 @@ export interface User {
 export interface Me {
   user: User;
   can: string[];
+  mfa: { required: boolean; enabled: boolean };
 }
 
 export interface Role {
@@ -56,6 +57,9 @@ export interface ClientDetail {
 export interface Settings extends Branding {
   logoKey?: string;
   supportEmail?: string;
+  safeZone?: { top: number; bottom: number; sides: number };
+  limits?: { scansPerDay: number; generationsPerDay: number; imageEditsPerDay: number };
+  requireStaffMfa?: boolean;
 }
 
 export interface TemplateMeta {

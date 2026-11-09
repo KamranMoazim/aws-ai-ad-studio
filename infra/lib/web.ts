@@ -1,12 +1,15 @@
 import { Duration, Fn, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import * as ses from 'aws-cdk-lib/aws-ses';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import type { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
@@ -45,7 +48,17 @@ export interface WebProps {
   ai: Ai;
   clientDistPath: string;
   senderEmail?: string;
+  webAclArn?: string;
+  domain?: CustomDomain;
 }
+
+export interface CustomDomain {
+  domainName: string;
+  hostedZoneId: string;
+  zoneName: string;
+}
+
+export const API_THROTTLE = { burst: 100, rate: 50 };
 
 export class Web extends Construct {
   readonly api: NodejsFunction;
@@ -106,6 +119,11 @@ export class Web extends Construct {
     });
     // CORS is handled in the Lambda; API-level CORS naming CloudFront would cycle with /d/*.
     this.httpApi = new apigwv2.HttpApi(this, 'HttpApi', { apiName: 'adstudio-api' });
+    const stage = this.httpApi.defaultStage?.node.defaultChild as apigwv2.CfnStage;
+    stage.defaultRouteSettings = {
+      throttlingBurstLimit: API_THROTTLE.burst,
+      throttlingRateLimit: API_THROTTLE.rate,
+    };
     const apiOrigin = new origins.HttpOrigin(
       Fn.select(2, Fn.split('/', this.httpApi.apiEndpoint)),
       { protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY },
@@ -118,6 +136,19 @@ export class Web extends Construct {
       ttl: Duration.seconds(0),
     });
     const assetsOrigin = origins.S3BucketOrigin.withOriginAccessControl(assetsBucket);
+    const zone = props.domain
+      ? route53.HostedZone.fromHostedZoneAttributes(this, 'Zone', {
+          hostedZoneId: props.domain.hostedZoneId,
+          zoneName: props.domain.zoneName,
+        })
+      : undefined;
+    const certificate =
+      props.domain && zone
+        ? new acm.Certificate(this, 'Certificate', {
+            domainName: props.domain.domainName,
+            validation: acm.CertificateValidation.fromDns(zone),
+          })
+        : undefined;
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(this.siteBucket),
@@ -146,8 +177,20 @@ export class Web extends Construct {
       defaultRootObject: 'index.html',
       errorResponses: [spaFallback(403), spaFallback(404)],
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
+      webAclId: props.webAclArn,
+      domainNames: props.domain ? [props.domain.domainName] : undefined,
+      certificate,
     });
-    this.siteUrl = `https://${this.distribution.distributionDomainName}`;
+    if (props.domain && zone) {
+      new route53.ARecord(this, 'SiteAlias', {
+        zone,
+        recordName: props.domain.domainName,
+        target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(this.distribution)),
+      });
+    }
+    this.siteUrl = props.domain
+      ? `https://${props.domain.domainName}`
+      : `https://${this.distribution.distributionDomainName}`;
 
     // Listing the CloudFront domain here would make a bucket <-> distribution cycle.
     assetsBucket.addCorsRule({
@@ -212,6 +255,7 @@ export class Web extends Construct {
           'cognito-idp:AdminCreateUser',
           'cognito-idp:AdminDisableUser',
           'cognito-idp:AdminEnableUser',
+          'cognito-idp:AdminGetUser',
         ],
         resources: [userPool.userPoolArn],
       }),

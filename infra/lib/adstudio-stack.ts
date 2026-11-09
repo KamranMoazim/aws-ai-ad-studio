@@ -2,17 +2,23 @@ import { CfnOutput, Stack, type StackProps } from 'aws-cdk-lib';
 import type { Construct } from 'constructs';
 import { Ai, type ClaudeProvider } from './ai.js';
 import { Auth } from './auth.js';
+import { Edge } from './edge.js';
 import { ExportPipeline } from './export-pipeline.js';
 import { Media } from './media.js';
+import { Monitoring } from './monitoring.js';
 import { ScanPipeline } from './scan-pipeline.js';
 import { Storage } from './storage.js';
-import { Web } from './web.js';
+import { Web, type CustomDomain } from './web.js';
 
 export interface AdStudioStackProps extends StackProps {
   appName: string;
   clientDistPath: string;
   senderEmail?: string;
   claudeProvider: ClaudeProvider;
+  alertEmail?: string;
+  waf: boolean;
+  renderConcurrency?: number;
+  domain?: CustomDomain;
 }
 
 export class AdStudioStack extends Stack {
@@ -23,6 +29,8 @@ export class AdStudioStack extends Stack {
   readonly exports: ExportPipeline;
   readonly scans: ScanPipeline;
   readonly ai: Ai;
+  readonly edge?: Edge;
+  readonly monitoring: Monitoring;
 
   constructor(scope: Construct, id: string, props: AdStudioStackProps) {
     super(scope, id, props);
@@ -37,6 +45,7 @@ export class AdStudioStack extends Stack {
       table: this.storage.table,
       assetsBucket: this.storage.assetsBucket,
       render: this.media.render,
+      renderConcurrency: props.renderConcurrency,
     });
     this.scans = new ScanPipeline(this, 'Scan', {
       table: this.storage.table,
@@ -50,6 +59,7 @@ export class AdStudioStack extends Stack {
       media: this.media,
       claude: { provider: props.claudeProvider },
     });
+    this.edge = props.waf ? new Edge(this, 'Edge', { userPool: this.auth.userPool }) : undefined;
     this.web = new Web(this, 'Web', {
       storage: this.storage,
       auth: this.auth,
@@ -59,6 +69,27 @@ export class AdStudioStack extends Stack {
       ai: this.ai,
       clientDistPath: props.clientDistPath,
       senderEmail: props.senderEmail,
+      webAclArn: this.edge?.siteAcl.attrArn,
+      domain: props.domain,
+    });
+    this.monitoring = new Monitoring(this, 'Monitoring', {
+      alertEmail: props.alertEmail,
+      functions: {
+        Api: this.web.api,
+        StripeWebhook: this.web.stripeWebhook,
+        Render: this.media.render,
+        ProcessUpload: this.media.processUpload,
+        ExportZip: this.exports.zip,
+        ScanBrowse: this.scans.browse,
+        ScanAssets: this.media.scanAssets,
+        ScanAnalyze: this.scans.analyze,
+        Generate: this.ai.generate,
+        ImageEdit: this.ai.imageEdit,
+      },
+      throttleWatch: { Api: this.web.api, Render: this.media.render },
+      stateMachines: { Export: this.exports.stateMachine, Scan: this.scans.stateMachine },
+      httpApi: this.web.httpApi,
+      deadLetterQueue: this.ai.deadLetterQueue,
     });
     this.auth.customMessage.addEnvironment('SITE_URL', this.web.siteUrl);
 
@@ -79,6 +110,9 @@ export class AdStudioStack extends Stack {
     new CfnOutput(this, 'StripeWebhookUrl', {
       value: `${this.web.httpApi.apiEndpoint}/webhooks/stripe`,
     });
+    new CfnOutput(this, 'AlertTopicArn', { value: this.monitoring.topic.topicArn });
+    new CfnOutput(this, 'GenerateDlqUrl', { value: this.ai.deadLetterQueue.queueUrl });
+    new CfnOutput(this, 'GenerateFunctionName', { value: this.ai.generate.functionName });
     new CfnOutput(this, 'ScanStateMachineArn', { value: this.scans.stateMachine.stateMachineArn });
     new CfnOutput(this, 'ExportStateMachineArn', {
       value: this.exports.stateMachine.stateMachineArn,

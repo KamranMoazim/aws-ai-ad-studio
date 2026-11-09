@@ -9,12 +9,13 @@ import { Construct } from 'constructs';
 import { appFunction, logGroup } from './function.js';
 import { EXPORTS_PREFIX } from './media.js';
 
-export const RENDER_CONCURRENCY = 8;
+export const DEFAULT_RENDER_CONCURRENCY = 4;
 
 export interface ExportPipelineProps {
   table: dynamodb.ITableV2;
   assetsBucket: s3.IBucket;
   render: lambda.IFunction;
+  renderConcurrency?: number;
 }
 
 export class ExportPipeline extends Construct {
@@ -56,7 +57,7 @@ export class ExportPipeline extends Construct {
     });
     const sizes = new sfn.Map(this, 'Sizes', {
       itemsPath: '$.sizes',
-      maxConcurrency: RENDER_CONCURRENCY,
+      maxConcurrency: props.renderConcurrency ?? DEFAULT_RENDER_CONCURRENCY,
       itemSelector: {
         'snapshotKey.$': '$.snapshotKey',
         'size.$': '$$.Map.Item.Value',

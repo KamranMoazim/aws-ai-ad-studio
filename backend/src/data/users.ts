@@ -140,6 +140,7 @@ async function fetchPrincipal(userId: string): Promise<Principal | undefined> {
     roleIds: user.roleIds,
     clientId: user.clientId,
     assignedClientIds: user.type === 'staff' ? await assignedClientIds(userId) : [],
+    mfaEnabled: user.mfaEnabled === true,
   };
 }
 

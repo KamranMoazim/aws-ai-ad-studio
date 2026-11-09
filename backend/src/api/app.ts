@@ -4,6 +4,7 @@ import { ZodError } from 'zod';
 import { HttpError } from '../core/http-error.js';
 import { requireUser, type AppEnv } from './auth.js';
 import { assetRoutes } from './routes/assets.js';
+import { auditRoutes } from './routes/audit.js';
 import { brandKitRoutes } from './routes/brand-kits.js';
 import { brandingRoutes } from './routes/branding.js';
 import { downloadRoutes } from './routes/downloads.js';
@@ -44,6 +45,7 @@ export const PROTECTED_PREFIXES = [
   '/projects',
   '/prices',
   '/transactions',
+  '/audit',
 ];
 for (const path of PROTECTED_PREFIXES) {
   app.use(path, requireUser);
@@ -63,6 +65,7 @@ app.route('/clients', scanRoutes);
 app.route('/clients', generationRoutes);
 app.route('/prices', priceRoutes);
 app.route('/transactions', transactionRoutes);
+app.route('/audit', auditRoutes);
 app.route('/templates', templateRoutes);
 
 app.notFound((context) => context.json({ error: 'not_found', message: 'Not found' }, 404));

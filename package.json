@@ -19,6 +19,9 @@
     "teardown": "scripts/teardown.sh",
     "stripe:keys": "scripts/set-stripe-keys.sh",
     "stripe:webhook": "npm --prefix backend run stripe:webhook",
-    "claude:key": "scripts/set-claude-key.sh"
+    "claude:key": "scripts/set-claude-key.sh",
+    "dlq:redrive": "npm --prefix backend run redrive --",
+    "seed:demo": "npm --prefix backend run seed:demo",
+    "openapi": "npm --prefix backend run openapi"
   }
 }

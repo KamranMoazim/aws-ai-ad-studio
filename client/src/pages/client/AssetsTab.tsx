@@ -1,5 +1,5 @@
 import { useState, type MouseEvent } from 'react';
-import { uploadAsset } from '../../lib/assets';
+import { runImageJob, uploadAsset } from '../../lib/assets';
 import { api, errorText } from '../../lib/api';
 import type { Asset, BrandKit } from '../../lib/types';
 import { useLoad } from '../../lib/useLoad';
@@ -61,10 +61,7 @@ export function AssetsTab({ clientId }: { clientId: string }) {
     setBusy(true);
     setMessage(undefined);
     try {
-      await api(`/clients/${clientId}/images/${asset.assetId}/${op}`, {
-        method: 'POST',
-        body: op === 'outpaint' ? { aspect } : {},
-      });
+      await runImageJob(clientId, `${asset.assetId}/${op}`, op === 'outpaint' ? { aspect } : {});
       await reload();
     } catch (reason) {
       setMessage(errorText(reason));
@@ -195,10 +192,7 @@ function BackgroundForm({
     setBusy(true);
     onError(undefined);
     try {
-      await api(`/clients/${clientId}/images/background`, {
-        method: 'POST',
-        body: { brandKitId: chosen, style, aspect },
-      });
+      await runImageJob(clientId, 'background', { brandKitId: chosen, style, aspect });
       onDone();
     } catch (reason) {
       onError(errorText(reason));

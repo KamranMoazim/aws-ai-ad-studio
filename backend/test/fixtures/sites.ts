@@ -38,9 +38,15 @@ const SITES: SiteSpec[] = [
     headerText: '#ffffff',
     offers: ['20% off birthday cakes this month'],
     services: ['Birthday cakes', 'Sourdough bread'],
-    logoFile: { name: 'rosie-logo.png', svg: logoSvg("Rosie's", '#8b3a3a', '#f4b942', '#ffffff'), format: 'png' },
-    headerLogo: () => '<a href="index.html"><img src="rosie-logo.png" alt="Rosie\'s Bakery logo" width="180" height="48"></a>',
-    offerPage: '<h1>Offers</h1><p>This month only: 20% off birthday cakes this month when you order online.</p>',
+    logoFile: {
+      name: 'rosie-logo.png',
+      svg: logoSvg("Rosie's", '#8b3a3a', '#f4b942', '#ffffff'),
+      format: 'png',
+    },
+    headerLogo: () =>
+      '<a href="index.html"><img src="rosie-logo.png" alt="Rosie\'s Bakery logo" width="180" height="48"></a>',
+    offerPage:
+      '<h1>Offers</h1><p>This month only: 20% off birthday cakes this month when you order online.</p>',
   },
   {
     name: 'plumbing',
@@ -66,9 +72,14 @@ const SITES: SiteSpec[] = [
     headerText: '#0f766e',
     offers: [],
     services: ['Check-ups', 'Teeth whitening'],
-    logoFile: { name: 'brightsmile-brand.png', svg: logoSvg('Bright Smile', '#0f766e', '#22c55e'), format: 'png' },
+    logoFile: {
+      name: 'brightsmile-brand.png',
+      svg: logoSvg('Bright Smile', '#0f766e', '#22c55e'),
+      format: 'png',
+    },
     extraHead: '<meta property="og:logo" content="brightsmile-brand.png">',
-    headerLogo: () => '<a href="./"><img class="brand-mark" src="brightsmile-brand.png" alt="Bright Smile Dental" width="190" height="50"></a>',
+    headerLogo: () =>
+      '<a href="./"><img class="brand-mark" src="brightsmile-brand.png" alt="Bright Smile Dental" width="190" height="50"></a>',
   },
   {
     name: 'gym',
@@ -82,7 +93,11 @@ const SITES: SiteSpec[] = [
     offers: ['First week free'],
     services: ['Personal training', 'HIIT classes'],
     hard: 'logo drawn as a CSS background',
-    logoFile: { name: 'ironpulse-logo.png', svg: logoSvg('Iron Pulse', '#111827', '#e11d48', '#ffffff'), format: 'png' },
+    logoFile: {
+      name: 'ironpulse-logo.png',
+      svg: logoSvg('Iron Pulse', '#111827', '#e11d48', '#ffffff'),
+      format: 'png',
+    },
     headerLogo: () =>
       '<a href="index.html" class="site-logo" style="display:block;width:180px;height:48px;background:url(ironpulse-logo.png) no-repeat left center/contain" aria-label="Iron Pulse Gym"></a>',
     offerPage: '<h1>Join today</h1><p>Try us out: First week free, no contract needed.</p>',
@@ -100,7 +115,8 @@ const SITES: SiteSpec[] = [
     hard: 'text-only logo; only an app icon image exists',
     logoFile: { name: 'petal-icon.png', svg: logoSvg('P&S', '#6d28d9', '#f472b6'), format: 'png' },
     extraHead: '<link rel="apple-touch-icon" sizes="180x180" href="petal-icon.png">',
-    headerLogo: () => '<a href="index.html" class="logo-text" style="font-size:28px;font-weight:700;text-decoration:none;color:#6d28d9">Petal &amp; Stem</a>',
+    headerLogo: () =>
+      '<a href="index.html" class="logo-text" style="font-size:28px;font-weight:700;text-decoration:none;color:#6d28d9">Petal &amp; Stem</a>',
   },
   {
     name: 'cafe',
@@ -112,8 +128,13 @@ const SITES: SiteSpec[] = [
     headerText: '#3f2a1d',
     offers: ['Buy 9 coffees, get the 10th free'],
     services: ['Espresso bar', 'Breakfast'],
-    logoFile: { name: 'grind-mark.svg', svg: logoSvg('Grind House', '#3f2a1d', '#d97706'), format: 'svg' },
-    headerLogo: () => '<a href="/"><img src="grind-mark.svg" alt="Grind House" width="180" height="48"></a>',
+    logoFile: {
+      name: 'grind-mark.svg',
+      svg: logoSvg('Grind House', '#3f2a1d', '#d97706'),
+      format: 'svg',
+    },
+    headerLogo: () =>
+      '<a href="/"><img src="grind-mark.svg" alt="Grind House" width="180" height="48"></a>',
     offerPage: '<h1>Loyalty</h1><p>Our loyalty card: Buy 9 coffees, get the 10th free.</p>',
   },
   {
@@ -126,8 +147,13 @@ const SITES: SiteSpec[] = [
     headerText: '#ffffff',
     offers: [],
     services: ['Conveyancing', 'Family law'],
-    logoFile: { name: 'hartcole-logo.png', svg: logoSvg('Hart & Cole', '#1e293b', '#b45309', '#ffffff'), format: 'png' },
-    headerLogo: () => '<a href="index.html"><img src="hartcole-logo.png" alt="Hart and Cole logo" width="200" height="54"></a>',
+    logoFile: {
+      name: 'hartcole-logo.png',
+      svg: logoSvg('Hart & Cole', '#1e293b', '#b45309', '#ffffff'),
+      format: 'png',
+    },
+    headerLogo: () =>
+      '<a href="index.html"><img src="hartcole-logo.png" alt="Hart and Cole logo" width="200" height="54"></a>',
     footer:
       '<div class="awards"><img src="award-logo.png" alt="Law Society award logo" width="120" height="60"><img src="partner-logo.png" alt="Partner logo" width="120" height="60"></div>',
   },
@@ -143,7 +169,8 @@ const SITES: SiteSpec[] = [
     services: ['Haircuts', 'Colour'],
     logoFile: { name: 'glow-logo.png', svg: logoSvg('Glow', '#db2777', '#0ea5e9'), format: 'png' },
     extraHead: '<meta name="theme-color" content="#db2777">',
-    headerLogo: () => '<a href="index.html"><img src="glow-logo.png" alt="Glow Salon" width="160" height="44"></a>',
+    headerLogo: () =>
+      '<a href="index.html"><img src="glow-logo.png" alt="Glow Salon" width="160" height="44"></a>',
     offerPage: '<h1>Pricing</h1><p>New clients get 15% off your first visit. Cuts from $45.</p>',
   },
   {
@@ -157,8 +184,13 @@ const SITES: SiteSpec[] = [
     offers: [],
     services: ['Garden design', 'Lawn care'],
     hard: 'white logo on a dark header',
-    logoFile: { name: 'greenline-logo.png', svg: logoSvg('Greenline', '#ffffff', '#84cc16', '#ffffff'), format: 'png' },
-    headerLogo: () => '<a href="index.html"><img src="greenline-logo.png" alt="Greenline Landscapes" width="190" height="50"></a>',
+    logoFile: {
+      name: 'greenline-logo.png',
+      svg: logoSvg('Greenline', '#ffffff', '#84cc16', '#ffffff'),
+      format: 'png',
+    },
+    headerLogo: () =>
+      '<a href="index.html"><img src="greenline-logo.png" alt="Greenline Landscapes" width="190" height="50"></a>',
   },
   {
     name: 'repair',
@@ -213,11 +245,15 @@ async function photo(seed: number): Promise<Buffer> {
     pixels[index + 1] = (y * 0.2 + seed * 40) % 256;
     pixels[index + 2] = (200 - x * 0.1 + seed * 25) % 256;
   }
-  return sharp(pixels, { raw: { width, height, channels: 3 } }).jpeg({ quality: 82 }).toBuffer();
+  return sharp(pixels, { raw: { width, height, channels: 3 } })
+    .jpeg({ quality: 82 })
+    .toBuffer();
 }
 
 export async function buildSites(root: string): Promise<SiteExpectation[]> {
-  const badge = await sharp(Buffer.from(logoSvg('Award', '#999999', '#cccccc'))).png().toBuffer();
+  const badge = await sharp(Buffer.from(logoSvg('Award', '#999999', '#cccccc')))
+    .png()
+    .toBuffer();
   for (const [index, spec] of SITES.entries()) {
     const dir = join(root, spec.name);
     mkdirSync(dir, { recursive: true });
@@ -233,14 +269,40 @@ export async function buildSites(root: string): Promise<SiteExpectation[]> {
     writeFileSync(join(dir, 'photo-1.jpg'), await photo(index * 3));
     writeFileSync(join(dir, 'photo-2.jpg'), await photo(index * 3 + 1));
     writeFileSync(join(dir, 'photo-3.jpg'), await photo(index * 3 + 2));
-    const services = spec.services.map((service) => `<h2>${service}</h2><p>Professional ${service.toLowerCase()} by our experienced local team.</p>`).join('');
+    const services = spec.services
+      .map(
+        (service) =>
+          `<h2>${service}</h2><p>Professional ${service.toLowerCase()} by our experienced local team.</p>`,
+      )
+      .join('');
     writeFileSync(
       join(dir, 'index.html'),
-      page(spec, 'Home', `<h1>${spec.business}</h1><p>Welcome to ${spec.business}, proudly serving the community.</p><img class="photo" src="photo-1.jpg" alt="Our shop"><img class="photo" src="photo-2.jpg" alt="Our work">`),
+      page(
+        spec,
+        'Home',
+        `<h1>${spec.business}</h1><p>Welcome to ${spec.business}, proudly serving the community.</p><img class="photo" src="photo-1.jpg" alt="Our shop"><img class="photo" src="photo-2.jpg" alt="Our work">`,
+      ),
     );
-    writeFileSync(join(dir, 'services.html'), page(spec, 'Services', `<h1>Our services</h1>${services}<img class="photo" src="photo-3.jpg" alt="Service in progress">`));
-    writeFileSync(join(dir, 'about.html'), page(spec, 'About us', `<h1>About ${spec.business}</h1><p>Family owned for over ten years. We care about every customer.</p>`));
-    writeFileSync(join(dir, 'contact.html'), page(spec, 'Contact', '<h1>Contact</h1><p>Call us or send a message any time.</p>'));
+    writeFileSync(
+      join(dir, 'services.html'),
+      page(
+        spec,
+        'Services',
+        `<h1>Our services</h1>${services}<img class="photo" src="photo-3.jpg" alt="Service in progress">`,
+      ),
+    );
+    writeFileSync(
+      join(dir, 'about.html'),
+      page(
+        spec,
+        'About us',
+        `<h1>About ${spec.business}</h1><p>Family owned for over ten years. We care about every customer.</p>`,
+      ),
+    );
+    writeFileSync(
+      join(dir, 'contact.html'),
+      page(spec, 'Contact', '<h1>Contact</h1><p>Call us or send a message any time.</p>'),
+    );
     if (spec.offerPage) {
       writeFileSync(join(dir, 'offers.html'), page(spec, 'Offers', spec.offerPage));
     }

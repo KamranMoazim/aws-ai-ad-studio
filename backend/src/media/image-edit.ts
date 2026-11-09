@@ -5,6 +5,7 @@ import { clientAssetKey } from '../core/keys.js';
 import type { Asset } from '../core/schemas.js';
 import { getAsset, saveAsset } from '../data/assets.js';
 import { getBrandKit } from '../data/brand-kits.js';
+import { finishImageJob } from '../data/image-jobs.js';
 import {
   extensionFor,
   ImageServiceError,
@@ -78,7 +79,8 @@ async function store(
     width: encoded.info.width,
     height: encoded.info.height,
     bytes: encoded.data.length,
-    ...focal,
+    focalX: focal.focalX,
+    focalY: focal.focalY,
     source: event.op === 'background' ? 'ai-generated' : 'ai-edit',
     derivedFrom,
     createdAt: new Date().toISOString(),
@@ -219,4 +221,14 @@ export async function editImage(
   }
 }
 
-export const handler = (event: ImageEditEvent) => editImage(event, stabilityImageService);
+export async function handler(event: ImageEditEvent & { jobId: string }): Promise<ImageEditResult> {
+  const result = await editImage(event, stabilityImageService);
+  await finishImageJob(
+    event.clientId,
+    event.jobId,
+    result.ok
+      ? { status: 'ready', assetId: result.asset.assetId }
+      : { status: 'failed', message: result.message },
+  );
+  return result;
+}

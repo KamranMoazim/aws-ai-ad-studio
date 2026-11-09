@@ -6,10 +6,12 @@ import {
   requestPasswordReset,
   setNewPassword,
   startSignIn,
+  submitTotpCode,
+  type SignInStep,
 } from '../lib/auth';
 import type { Branding } from '../lib/types';
 
-type Step = 'sign-in' | 'new-password' | 'forgot' | 'reset';
+type Step = 'sign-in' | 'new-password' | 'totp' | 'forgot' | 'reset';
 
 const PASSWORD_HINT =
   'At least 12 characters with upper and lower case letters, a number and a symbol.';
@@ -36,6 +38,14 @@ export function SignIn({ branding, onSignedIn }: { branding: Branding; onSignedI
     }
   };
 
+  const advance = (next: SignInStep) => {
+    if (next === 'done') {
+      onSignedIn();
+    } else {
+      go(next);
+    }
+  };
+
   const go = (next: Step) => {
     setError(undefined);
     setNotice(undefined);
@@ -50,11 +60,7 @@ export function SignIn({ branding, onSignedIn }: { branding: Branding; onSignedI
         {step === 'sign-in' && (
           <form
             onSubmit={submit(async () => {
-              if ((await startSignIn(email.trim(), password)) === 'new-password') {
-                go('new-password');
-              } else {
-                onSignedIn();
-              }
+              advance(await startSignIn(email.trim(), password));
             })}
           >
             <h1>Sign in</h1>
@@ -91,8 +97,7 @@ export function SignIn({ branding, onSignedIn }: { branding: Branding; onSignedI
         {step === 'new-password' && (
           <form
             onSubmit={submit(async () => {
-              await setNewPassword(password);
-              onSignedIn();
+              advance(await setNewPassword(password));
             })}
           >
             <h1>Choose a password</h1>
@@ -112,6 +117,27 @@ export function SignIn({ branding, onSignedIn }: { branding: Branding; onSignedI
             {error && <p className="error">{error}</p>}
             <button className="button primary" disabled={busy}>
               Save and continue
+            </button>
+          </form>
+        )}
+        {step === 'totp' && (
+          <form onSubmit={submit(async () => advance(await submitTotpCode(code.trim())))}>
+            <h1>Two-step sign-in</h1>
+            <p className="muted">Enter the 6-digit code from your authenticator app.</p>
+            <label>
+              Code
+              <input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                required
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+              />
+            </label>
+            {error && <p className="error">{error}</p>}
+            <button className="button primary" disabled={busy}>
+              Continue
             </button>
           </form>
         )}

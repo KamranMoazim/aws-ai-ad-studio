@@ -11,7 +11,7 @@
     "test:policies": "tsx test/policies.test.ts",
     "test:authz:live": "tsx test/authz-live.test.ts",
     "test:flow:live": "tsx test/flow-live.test.ts",
-    "test:live": "npm run test:authz:live && npm run test:flow:live && npm run test:templates:live && npm run test:projects:live && npm run test:golden:live && npm run test:payments:live && npm run test:scan:live && npm run test:generate:live",
+    "test:live": "npm run test:authz:live && npm run test:flow:live && npm run test:templates:live && npm run test:projects:live && npm run test:golden:live && npm run test:payments:live && npm run test:scan:live && npm run test:generate:live && npm run test:hardening:live",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "client-config": "tsx scripts/client-config.ts",
     "dev:api": "tsx watch src/api/local.ts",
@@ -30,7 +30,11 @@
     "test:scan": "tsx test/scan.test.ts",
     "test:scan:live": "tsx test/scan-eval-live.test.ts",
     "test:generate": "tsx test/generate.test.ts",
-    "test:generate:live": "tsx test/generate-live.test.ts"
+    "test:generate:live": "tsx test/generate-live.test.ts",
+    "redrive": "tsx scripts/redrive.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "openapi": "tsx scripts/openapi.ts",
+    "test:hardening:live": "tsx test/hardening-live.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/bedrock-sdk": "^1.1.1",
@@ -58,6 +62,7 @@
   },
   "devDependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1164.0",
+    "@aws-sdk/client-sqs": "^3.1164.0",
     "@cedar-policy/cedar-wasm": "^4.14.0",
     "@hono/node-server": "^2.1.6",
     "@types/aws-lambda": "^8.10.164",

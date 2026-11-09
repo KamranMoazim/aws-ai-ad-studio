@@ -7,6 +7,7 @@ export interface Principal {
   roleIds: string[];
   clientId?: string;
   assignedClientIds: string[];
+  mfaEnabled?: boolean;
 }
 
 export interface ResourceRef {

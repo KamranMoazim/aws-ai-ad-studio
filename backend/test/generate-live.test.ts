@@ -45,6 +45,21 @@ async function poll<T>(
   return latest.body as T;
 }
 
+async function imageJob(adminToken: string, clientId: string, path: string, body: unknown) {
+  const started = await call(adminToken, 'POST', `/clients/${clientId}/images/${path}`, body);
+  if (started.status !== 202) {
+    return started;
+  }
+  const finished = await poll<any>(
+    () => call(adminToken, 'GET', `/clients/${clientId}/images/jobs/${started.body.jobId}`),
+    (latest) => latest.job?.status !== 'running',
+  );
+  return {
+    status: finished.job?.status === 'ready' ? 201 : 400,
+    body: finished.asset ?? finished.job,
+  };
+}
+
 async function fitIssues(template: Template, content: unknown): Promise<LintIssue[]> {
   const response = await lambdaClient.send(
     new InvokeCommand({
@@ -104,6 +119,15 @@ try {
   );
   check('the website scan finishes', scanned.scan?.status === 'ready', scanned.scan);
   const draft = scanned.result.draft;
+  check(
+    'the scan suggests photos for the brand kit',
+    draft.photoIndexes.length > 0,
+    scanned.result.photos.map((photo: any) => ({
+      index: photo.index,
+      label: photo.label,
+      quality: photo.quality,
+    })),
+  );
   const kit = (
     await call(
       adminToken,
@@ -188,13 +212,14 @@ try {
 
   const assets = (await call(adminToken, 'GET', `/clients/${client.clientId}/assets`)).body.assets;
   const photo = assets.find((asset: any) => asset.kind === 'photo');
+  check(
+    'brand kit photos copied from a scan live in the client assets folder',
+    assets.every((asset: any) => asset.key.startsWith(`assets/${client.clientId}/`)),
+    assets.map((asset: any) => asset.key),
+  );
   const logo = assets.find((asset: any) => asset.kind === 'logo');
   if (logo) {
-    const removed = await call(
-      adminToken,
-      'POST',
-      `/clients/${client.clientId}/images/${logo.assetId}/remove-bg`,
-    );
+    const removed = await imageJob(adminToken, client.clientId, `${logo.assetId}/remove-bg`, {});
     check(
       'remove background makes a new AI-edited asset',
       removed.status === 201 &&
@@ -204,12 +229,9 @@ try {
     );
   }
   if (photo) {
-    const extended = await call(
-      adminToken,
-      'POST',
-      `/clients/${client.clientId}/images/${photo.assetId}/outpaint`,
-      { aspect: '9:16' },
-    );
+    const extended = await imageJob(adminToken, client.clientId, `${photo.assetId}/outpaint`, {
+      aspect: '9:16',
+    });
     check(
       'outpaint extends a photo to 9:16',
       extended.status === 201 &&
@@ -217,16 +239,11 @@ try {
       extended.body,
     );
   }
-  const background = await call(
-    adminToken,
-    'POST',
-    `/clients/${client.clientId}/images/background`,
-    {
-      brandKitId: kit.kitId,
-      style: 'Soft abstract waves',
-      aspect: '1:1',
-    },
-  );
+  const background = await imageJob(adminToken, client.clientId, 'background', {
+    brandKitId: kit.kitId,
+    style: 'Soft abstract waves',
+    aspect: '1:1',
+  });
   check(
     'a background is generated in the brand colours',
     background.status === 201 && background.body.source === 'ai-generated',

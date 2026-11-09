@@ -58,6 +58,7 @@ export async function createTestUser(
   label: string,
   roleIds: string[],
   clientId?: string,
+  options: { mfaEnabled?: boolean } = {},
 ): Promise<{ userId: string; email: string }> {
   const email = testEmail(label);
   const created = await cognito.send(
@@ -80,6 +81,7 @@ export async function createTestUser(
     roleIds,
     clientId,
     status: 'active',
+    mfaEnabled: options.mfaEnabled ?? !clientId,
     createdAt: new Date().toISOString(),
   });
   return { userId, email };
