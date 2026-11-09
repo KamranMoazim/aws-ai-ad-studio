@@ -83,6 +83,8 @@ export interface Asset {
   focalX: number;
   focalY: number;
   facesFound?: number;
+  source?: 'upload' | 'scan' | 'ai-edit' | 'ai-generated';
+  derivedFrom?: string;
   url?: string;
   createdAt: string;
 }

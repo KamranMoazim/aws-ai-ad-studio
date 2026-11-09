@@ -254,7 +254,9 @@ projectRoutes.post('/:id/export', async (context) => {
   }
   const taskType: TaskType = exports.some((record) => record.status === 'ready')
     ? 're-export'
-    : 'template-set';
+    : project.origin === 'ai'
+      ? 'ai-set'
+      : 'template-set';
   const price = client!.paymentRequired
     ? await effectivePrice(project.clientId, taskType)
     : undefined;

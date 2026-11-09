@@ -4,7 +4,7 @@ Branded AI ad creative for display and Meta ads, on AWS.
 
 AdStudio is a white-labelled web app where an agency's clients sign in and produce ready-to-upload ads in 8 sizes, either from a locked template or from their website. Agency staff manage clients, templates, pricing and permissions in an admin area. One deployment serves one agency, in the agency's own AWS account.
 
-> Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing. Phase 3 adds the client side: uploads, brand kits, the 8-size ad editor, server-side export and the archive. Phase 4 adds payments: prices, Stripe Checkout, webhooks, transactions, refunds and emailed download links. Phase 5 adds the website scan: URL in, reviewed brand kit out.
+> Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing. Phase 3 adds the client side: uploads, brand kits, the 8-size ad editor, server-side export and the archive. Phase 4 adds payments: prices, Stripe Checkout, webhooks, transactions, refunds and emailed download links. Phase 5 adds the website scan: URL in, reviewed brand kit out. Phase 6 adds AI ad generation and AI image helpers.
 
 ## How it works (phase 1)
 
@@ -70,6 +70,7 @@ S3 layout in the assets bucket: `uploads/` (raw, deleted after processing, expir
 **Stripe setup** (test mode first):
 
 ```bash
+npm run claude:key        # only when CLAUDE_PROVIDER=anthropic: stores the Anthropic API key
 npm run stripe:keys       # stores the secret key (sk_test_...) in SSM; leave the webhook secret blank
 npm run stripe:webhook    # registers the deployed webhook URL in Stripe and stores its signing secret
 ```
@@ -94,6 +95,33 @@ The **guarded fetcher** (all image downloads) allows http(s) on ports 80 and 443
 
 Scan files (capture, screenshots, logo candidates, photos, result) live under `scans/<client>/<scan>/` in the assets bucket.
 
+## AI generation and image helpers (phase 6)
+
+**Claude provider** (`CLAUDE_PROVIDER` in `infra/.env`, one setting and a redeploy to change):
+
+| Provider | Scan model | Copy model | Draft model | Notes |
+| --- | --- | --- | --- | --- |
+| `bedrock` (default) | Claude Haiku 5.5 | Claude Sonnet 5.5 | Claude Haiku 5.5 | Bedrock Mantle endpoint; the account needs access to these models |
+| `bedrock-legacy` | Claude Haiku 4.5 | Claude Sonnet 4.6 | Claude Haiku 4.5 | Bedrock runtime (`InvokeModel`); used by this deployment while 5.x access is pending |
+| `anthropic` | Claude Haiku 5.5 | Claude Sonnet 5.5 | Claude Haiku 5.5 | Claude API, key in SSM via `npm run claude:key` |
+
+Prompts, structured outputs and validation are the same for all three. IAM allows `bedrock:InvokeModel` only on the named Claude and Stability models.
+
+**Generate** (`POST /clients/:id/generations`, async; the generate Lambda does the work and the app polls):
+
+1. **Pick templates:** published, enabled for the client, the right channel, required image slots fillable from the brand kit (no photo, no photo-led template), scored by tags matching the notes, whether there is an offer and how many colour roles the kit fills. Top 3.
+2. **Write copy** with Claude Sonnet 5.5 (Claude Haiku 5.5 for quick drafts), one structured-output call per template: every text slot with the per-size character limits and line counts, facts only from the brand kit and the chosen offer, `[confirm]` where a fact is missing, and shorter wording for the sizes that need it.
+3. **Images and colours:** the logo for light or dark backgrounds depending on what it sits on, photos matched to slots by aspect ratio (keeping their focal points), brand colours mapped to roles, and the text colour fixed when it would fail 4.5:1 (brand colours themselves are never changed).
+4. **Validate:** the render Lambda checks every size with the real fonts (overflow, character limits), and code checks for unsourced claims: any number, currency or percent sign, or words such as free, best, guaranteed, sale or limited that are not in the brand kit or offer, and banned phrases. One retry with the problems listed; anything still failing becomes `[confirm]` (at that size for fit problems, everywhere for claims), so a variant never opens with overflowing text or an unsupported claim.
+
+The client picks a variant and edits it like any ad set. Its first export is charged as `ai-set` when payment is required.
+
+**Image helpers** (Stability AI on Bedrock, behind one `ImageService` adapter because the Bedrock image line-up changes): **Remove background** (logos and product photos), **Extend** a photo to 9:16, 4:5 or 1:1 (Outpaint, keeping the focal point), and **Generate background** (Style Guide with a swatch of the brand colours as the style reference; never people, faces, products, text or logos; falls back to a brand-colour gradient if the model is unavailable). Results are new assets marked AI edited or AI generated, with the source asset recorded. Limits: 20 generations and 20 image edits a day per client.
+
+| Entity | PK | SK |
+| --- | --- | --- |
+| Generation | `CLIENT#<id>` | `GEN#<id>` |
+
 ## Roles and scopes
 
 | Role | Type | Grants |
@@ -102,7 +130,7 @@ Scan files (capture, screenshots, logo candidates, photos, result) live under `s
 | Admin | staff | clients, staff assignment, client-user invites, projects, brand kits, templates, `all`. No users, roles, settings or pricing |
 | Account Manager | staff | templates `all`; clients, client-user invites, projects, brand kits `assigned` |
 | Client Owner | client | own client, projects, brand kits, transactions, invite client users, `own` |
-| Client User | client | own client, projects, brand kits, `own` |
+| Client User | client | own client and projects, read brand kits, `own` (no payments, brand kit edits, scans or AI image edits) |
 
 Scopes become Cedar conditions:
 
@@ -189,6 +217,11 @@ Local development: `npm run client:config` writes `client/public/config.json` fr
 | `POST` | `/clients/:id/scans` | `brandkit:edit`; `{ url, confirmOwnership: true }` |
 | `GET` | `/clients/:id/scans`, `/clients/:id/scans/:scanId` | `client:read`; result with preview URLs when ready |
 | `POST` | `/clients/:id/scans/:scanId/brand-kit` | `brandkit:edit`; saves the reviewed draft |
+| `POST` | `/clients/:id/generations` | `project:create`; `{ brandKitId, channel, serviceName?, offerText?, notes?, quality }` |
+| `GET` | `/clients/:id/generations/:generationId` | `client:read`; status and the 3 variants |
+| `POST` | `/clients/:id/generations/:generationId/variants/:index/project` | `project:create`; opens a variant as an ad set |
+| `POST` | `/clients/:id/images/:assetId/remove-bg`, `/clients/:id/images/:assetId/outpaint` | `brandkit:edit`; outpaint takes `{ aspect }` |
+| `POST` | `/clients/:id/images/background` | `brandkit:edit`; `{ brandKitId, style, aspect }` |
 
 ## Tests
 
@@ -215,6 +248,8 @@ npm run test:live        # against the deployed stack (needs bootstrap first)
 - **Scan (offline):** offer quotes checked against page text (kept, dropped, moved to the right page, invented numbers removed), unknown CTAs dropped; SVG scripts, handlers, external references, entities and foreignObject removed; palette roles, contrast fix and an empty site; k-means; same-site page choice skipping login and privacy pages.
 - **Scan (local Chrome):** 10 generated fixture sites (`backend/test/fixtures/sites.ts`) with a header image logo, an inline SVG, an `og:logo`, a CSS background logo, a text-only logo with an app icon, an SVG file, footer award badges, a white logo on a dark header and an unlabelled inline SVG; offers on some, none on others. Checks the pages visited, the logo shortlist, the palette and that every real offer is captured.
 - **Scan eval (live):** the same 10 sites uploaded under `scan-fixtures/` and scanned through the deployed pipeline (AgentCore Browser, media container, Claude Haiku 5.5). Exit check: correct logo for at least 8, usable palette for all 10, no offer whose quote is not on the site; also a reviewed draft saves as a brand kit, an invented offer cannot be saved, client users cannot scan, private addresses and missing ownership confirmation are refused.
+- **Generation (offline):** unsourced numbers, currency, percentages, free, superlatives and banned phrases flagged and offer-backed ones allowed; copy applied with valid per-size overrides; fit and claim problems mapped to slots and turned into `[confirm]`; template choice by channel, fillable slots and offer; the text colour fixed without touching brand colours; the dark-background logo chosen on a dark header; outpaint geometry and caps.
+- **Generation (live, exit check):** a fixture website is scanned and saved as a brand kit, 3 variants are generated, and each is opened as an ad set and re-checked independently: no overflow at any size with the real fonts, no unsourced claim at any size. Also remove background, extend to 9:16, generate background, client users cannot use AI image edits, and offers outside the brand kit are refused.
 - **Infra:** invite-only pool, SRP only for the web client, 15-minute access tokens, strict policy store, only `/health` and `/branding` public, private encrypted buckets, Node 24 arm64, no VPC or NAT.
 
 ## Build log
@@ -226,6 +261,7 @@ npm run test:live        # against the deployed stack (needs bootstrap first)
 | 3 | Client editor and export: uploads with sharp and Rekognition, brand kits, 8-size editor, Chromium render Lambda, compression, ZIP, archive, golden tests |
 | 4 | Payments: price catalogue and overrides, Stripe Checkout, signed and de-duplicated webhooks, transactions and CSV, refunds that revoke downloads, preview watermark, emailed download links |
 | 5 | Website scan: AgentCore Browser capture, guarded fetcher, logo ranking and SVG sanitising, palette, photo de-duplication and focal points, Claude Haiku 5.5 logo pick, photo labels and quoted-offer extraction, review and save as brand kit |
+| 6 | AI generation and image helpers: Claude provider switch (Bedrock or API key), template picking, Claude Sonnet 5.5 copy within per-size limits, real-font fit check and unsourced-claim check with one retry, remove background, outpaint, brand-colour backgrounds |
 
 ## Tear down
 

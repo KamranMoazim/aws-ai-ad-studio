@@ -23,16 +23,17 @@ export class Media extends Construct {
   readonly processUpload: lambda.DockerImageFunction;
   readonly render: lambda.DockerImageFunction;
   readonly scanAssets: lambda.DockerImageFunction;
+  readonly image: (handler: string) => lambda.DockerImageCode;
 
   constructor(scope: Construct, id: string, props: MediaProps) {
     super(scope, id);
 
-    const image = (handler: string) =>
+    const image = (this.image = (handler: string) =>
       lambda.DockerImageCode.fromImageAsset(REPO_ROOT, {
         file: 'media/Dockerfile',
         platform: Platform.LINUX_AMD64,
         cmd: [handler],
-      });
+      }));
     const environment = {
       TABLE_NAME: props.table.tableName,
       ASSETS_BUCKET: props.assetsBucket.bucketName,

@@ -8,15 +8,16 @@ import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import { Construct } from 'constructs';
 import { appFunction, logGroup } from './function.js';
+import { grantClaude, type ClaudeAccess } from './ai.js';
 import { SCANS_PREFIX } from './media.js';
 
-export const SCAN_MODEL = 'anthropic.claude-haiku-5-5';
 export const MANAGED_BROWSER = 'aws.browser.v1';
 
 export interface ScanPipelineProps {
   table: dynamodb.ITableV2;
   assetsBucket: s3.IBucket;
   scanAssets: lambda.IFunction;
+  claude: ClaudeAccess;
 }
 
 export class ScanPipeline extends Construct {
@@ -58,15 +59,13 @@ export class ScanPipeline extends Construct {
 
     this.analyze = appFunction(this, 'Analyze', {
       entry: 'src/scan-steps/analyze.ts',
-      environment: { ...environment, SCAN_MODEL },
+      environment,
       timeout: Duration.minutes(5),
       memorySize: 1024,
     });
     props.table.grantReadWriteData(this.analyze);
     props.assetsBucket.grantReadWrite(this.analyze, `${SCANS_PREFIX}*`);
-    this.analyze.addToRolePolicy(
-      new iam.PolicyStatement({ actions: ['bedrock-mantle:CreateInference'], resources: ['*'] }),
-    );
+    grantClaude(this, this.analyze, props.claude);
 
     this.failed = appFunction(this, 'Failed', { entry: 'src/scan-steps/failed.ts', environment });
     props.table.grantReadWriteData(this.failed);

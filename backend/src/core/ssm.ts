@@ -2,6 +2,7 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 
 export const STRIPE_SECRET_KEY_PARAMETER = '/adstudio/stripe-secret-key';
 export const STRIPE_WEBHOOK_SECRET_PARAMETER = '/adstudio/stripe-webhook-secret';
+export const ANTHROPIC_KEY_PARAMETER = '/adstudio/anthropic-api-key';
 
 const ssmClient = new SSMClient({});
 const cache = new Map<string, Promise<string | undefined>>();

@@ -18,6 +18,13 @@ export interface RenderEvent {
   mode?: 'export' | 'preview';
 }
 
+export interface CheckEvent {
+  mode: 'check';
+  template: ExportSnapshot['template'];
+  content: ExportSnapshot['content'];
+  safeZone: ExportSnapshot['safeZone'];
+}
+
 export class RenderCheckFailed extends Error {
   override name = 'RenderCheckFailed';
 }
@@ -102,26 +109,52 @@ export async function renderPng(
         images,
         safeZone: snapshot.safeZone,
       },
-    )) as { dataUrl: string; issues: LintIssue[] };
+    )) as { dataUrl: string; issues: LintIssue[]; layout: Record<string, unknown> };
     return {
       png: Buffer.from(result.dataUrl.slice(result.dataUrl.indexOf(',') + 1), 'base64'),
       issues: result.issues,
+      layout: result.layout,
     };
   } finally {
     await page.close().catch(() => undefined);
   }
 }
 
-export async function handler(event: RenderEvent): Promise<ExportFile | { key: string }> {
+export async function checkContentWithFonts(input: Omit<CheckEvent, 'mode'>): Promise<LintIssue[]> {
+  const [instance, base] = await Promise.all([browser(), origin()]);
+  const page = await instance.newPage();
+  try {
+    await page.goto(`${base}/render.html`, { waitUntil: 'load', timeout: RENDER_TIMEOUT_MS });
+    await page.waitForFunction('typeof window.checkAd === "function"', {
+      timeout: RENDER_TIMEOUT_MS,
+    });
+    return (await page.evaluate(
+      (payload) =>
+        (window as unknown as { checkAd: (input: unknown) => Promise<unknown> }).checkAd(payload),
+      input,
+    )) as LintIssue[];
+  } finally {
+    await page.close().catch(() => undefined);
+  }
+}
+
+export async function handler(
+  event: RenderEvent | CheckEvent,
+): Promise<
+  ExportFile | { key: string; layout: Record<string, unknown> } | { issues: LintIssue[] }
+> {
+  if (event.mode === 'check') {
+    return { issues: await checkContentWithFonts(event) };
+  }
   const snapshot = await getJson<ExportSnapshot>(event.snapshotKey);
   const prefix = event.snapshotKey.slice(0, event.snapshotKey.lastIndexOf('/'));
-  const { png, issues } = await renderPng(snapshot, event.size);
+  const { png, issues, layout } = await renderPng(snapshot, event.size);
   if (event.mode === 'preview') {
     const key = `${prefix}/preview-${event.size}.png`;
     await s3Client.send(
       new PutObjectCommand({ Bucket: bucket(), Key: key, Body: png, ContentType: 'image/png' }),
     );
-    return { key };
+    return { key, layout };
   }
   const errors = issues.filter((issue) => issue.severity === 'error');
   if (errors.length) {

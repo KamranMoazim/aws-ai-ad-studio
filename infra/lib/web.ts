@@ -10,6 +10,7 @@ import type { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
+import type { Ai } from './ai.js';
 import type { Auth } from './auth.js';
 import type { ExportPipeline } from './export-pipeline.js';
 import type { ScanPipeline } from './scan-pipeline.js';
@@ -41,6 +42,7 @@ export interface WebProps {
   media: Media;
   exports: ExportPipeline;
   scans: ScanPipeline;
+  ai: Ai;
   clientDistPath: string;
   senderEmail?: string;
 }
@@ -167,6 +169,8 @@ export class Web extends Construct {
         PROCESS_UPLOAD_FUNCTION: props.media.processUpload.functionName,
         EXPORT_STATE_MACHINE_ARN: props.exports.stateMachine.stateMachineArn,
         SCAN_STATE_MACHINE_ARN: props.scans.stateMachine.stateMachineArn,
+        GENERATE_FUNCTION: props.ai.generate.functionName,
+        IMAGE_EDIT_FUNCTION: props.ai.imageEdit.functionName,
         CORS_ORIGINS: `${LOCAL_ORIGIN},${this.siteUrl}`,
         ...(props.senderEmail ? { SENDER_EMAIL: props.senderEmail } : {}),
       },
@@ -186,6 +190,8 @@ export class Web extends Construct {
     assetsBucket.grantRead(this.api, `${SCANS_PREFIX}*`);
     assetsBucket.grantPut(this.api, `${CLIENT_ASSETS_PREFIX}*`);
     props.scans.stateMachine.grantStartExecution(this.api);
+    props.ai.generate.grantInvoke(this.api);
+    props.ai.imageEdit.grantInvoke(this.api);
     assetsBucket.grantRead(this.api, `${CLIENT_ASSETS_PREFIX}*`);
     props.media.processUpload.grantInvoke(this.api);
     props.exports.stateMachine.grantStartExecution(this.api);

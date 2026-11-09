@@ -59,6 +59,19 @@ export const DEFAULT_ROLES: Record<string, RoleInput> = {
   'client-user': {
     name: 'Client User',
     type: 'client',
-    grants: [{ actions: ['client:read', ...PROJECT_ACTIONS], scope: 'own' }],
+    grants: [
+      {
+        actions: [
+          'client:read',
+          'project:create',
+          'project:read',
+          'project:edit',
+          'project:export',
+          'project:download',
+          'brandkit:read',
+        ],
+        scope: 'own',
+      },
+    ],
   },
 };

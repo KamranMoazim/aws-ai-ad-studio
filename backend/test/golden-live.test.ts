@@ -20,10 +20,9 @@ process.env.RENDER_ROOT ??= fileURLToPath(new URL('../../client/dist', import.me
 const { closeBrowser, renderPng, stopServer } = await import('../src/media/render.js');
 const { deletePrefix } = await import('./cleanup.js');
 
-const MAX_DIFF_RATIO = 0.005;
 const PIXEL_THRESHOLD = 0.1;
-// macOS and Linux rasterise glyph edges differently; a light blur keeps layout changes visible.
-const EDGE_BLUR = 0.8;
+// Glyph edges differ between macOS and Linux font rasterisers; layout is compared exactly instead.
+const MAX_PIXEL_RATIO = 0.03;
 const DIFF_DIR = fileURLToPath(new URL('../../.playwright-mcp/golden-diffs/', import.meta.url));
 const s3Client = new S3Client({ region: outputs.Region });
 const lambdaClient = new LambdaClient({ region: outputs.Region });
@@ -64,7 +63,10 @@ const CONTENT_SETS: Array<[string, Record<string, string>]> = [
   ],
 ];
 
-async function serverPng(snapshotKey: string, size: string): Promise<Buffer> {
+async function serverRender(
+  snapshotKey: string,
+  size: string,
+): Promise<{ png: Buffer; layout: unknown }> {
   const response = await lambdaClient.send(
     new InvokeCommand({
       FunctionName: outputs.RenderFunctionName,
@@ -76,7 +78,7 @@ async function serverPng(snapshotKey: string, size: string): Promise<Buffer> {
     throw new Error(JSON.stringify(payload));
   }
   const object = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: payload.key }));
-  return Buffer.from(await object.Body!.transformToByteArray());
+  return { png: Buffer.from(await object.Body!.transformToByteArray()), layout: payload.layout };
 }
 
 try {
@@ -108,34 +110,32 @@ try {
       const results = await Promise.all(
         sizesForChannel(template.channel).map(async (size) => {
           const [server, local] = await Promise.all([
-            serverPng(snapshotKey, size),
-            renderPng({ template, content, safeZone: DEFAULT_SAFE_ZONE }, size, images).then(
-              (result) => result.png,
-            ),
+            serverRender(snapshotKey, size),
+            renderPng({ template, content, safeZone: DEFAULT_SAFE_ZONE }, size, images),
           ]);
-          const soften = (png: Buffer) => sharp(png).blur(EDGE_BLUR).png().toBuffer();
-          const left = PNG.sync.read(await soften(server));
-          const right = PNG.sync.read(await soften(local));
+          const sameLayout = JSON.stringify(server.layout) === JSON.stringify(local.layout);
+          const left = PNG.sync.read(server.png);
+          const right = PNG.sync.read(local.png);
           if (left.width !== right.width || left.height !== right.height) {
-            return { size, ratio: 1 };
+            return { size, ratio: 1, sameLayout };
           }
           const diff = new PNG({ width: left.width, height: left.height });
           const pixels = pixelmatch(left.data, right.data, diff.data, left.width, left.height, {
             threshold: PIXEL_THRESHOLD,
           });
           const ratio = pixels / (left.width * left.height);
-          if (ratio >= MAX_DIFF_RATIO) {
+          if (ratio >= MAX_PIXEL_RATIO || !sameLayout) {
             mkdirSync(DIFF_DIR, { recursive: true });
             writeFileSync(`${DIFF_DIR}${template.id}-${setName}-${size}.png`, PNG.sync.write(diff));
           }
-          return { size, ratio };
+          return { size, ratio, sameLayout };
         }),
       );
-      for (const { size, ratio } of results) {
+      for (const { size, ratio, sameLayout } of results) {
         worst = Math.max(worst, ratio);
         check(
-          `${template.name} ${setName} ${size} server matches browser (${(ratio * 100).toFixed(3)}% differ)`,
-          ratio < MAX_DIFF_RATIO,
+          `${template.name} ${setName} ${size}: same font sizes and line breaks, ${(ratio * 100).toFixed(2)}% of pixels differ`,
+          sameLayout && ratio < MAX_PIXEL_RATIO,
         );
       }
     }

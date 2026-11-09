@@ -940,3 +940,15 @@
   color: var(--brand-text);
   font-weight: 600;
 }
+
+.asset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.wide-fields .span-all {
+  grid-column: 1 / -1;
+}

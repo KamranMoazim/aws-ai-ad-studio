@@ -4,6 +4,8 @@ import { createRoot } from 'react-dom/client';
 import {
   checkContent,
   contentForSize,
+  elementText,
+  fitElement,
   type Content,
   type LintIssue,
   type SafeZone,
@@ -26,6 +28,7 @@ export interface RenderInput {
 export interface RenderOutput {
   dataUrl: string;
   issues: LintIssue[];
+  layout: Record<string, { fontSize: number; lines: string[] }>;
 }
 
 const IMAGE_WAIT_MS = 10_000;
@@ -73,7 +76,26 @@ async function renderAd(input: RenderInput): Promise<RenderOutput> {
     safeZone: input.safeZone,
     measure: measureText,
   }).filter((issue) => issue.size === input.size);
-  return { dataUrl: stage!.toDataURL({ mimeType: 'image/png', pixelRatio: 1 }), issues };
+  const layoutOf: RenderOutput['layout'] = {};
+  for (const element of layout.elements) {
+    if (!element.hidden && (element.type === 'text' || element.type === 'button')) {
+      const fit = fitElement(input.template, element, elementText(element, content), measureText);
+      layoutOf[element.id] = { fontSize: fit.fontSize, lines: fit.lines };
+    }
+  }
+  return {
+    dataUrl: stage!.toDataURL({ mimeType: 'image/png', pixelRatio: 1 }),
+    issues,
+    layout: layoutOf,
+  };
 }
 
-(window as unknown as { renderAd: typeof renderAd }).renderAd = renderAd;
+async function checkAd(input: Omit<RenderInput, 'size' | 'images'>): Promise<LintIssue[]> {
+  await ensureFonts();
+  return checkContent(input.template, input.content, {
+    safeZone: input.safeZone,
+    measure: measureText,
+  });
+}
+
+Object.assign(window, { renderAd, checkAd });

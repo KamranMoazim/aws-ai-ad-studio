@@ -22,6 +22,7 @@ const stack = new AdStudioStack(new App(), 'TestStack', {
   env: { account: '111111111111', region: 'us-east-1' },
   appName: 'Acme Ads',
   clientDistPath: distPath,
+  claudeProvider: 'bedrock',
 });
 const template = Template.fromStack(stack);
 const resources = template.toJSON().Resources as Record<
@@ -110,7 +111,7 @@ const zipFunctions = appFunctions.filter((fn) => fn.Properties.Runtime);
 const imageFunctions = appFunctions.filter((fn) => fn.Properties.PackageType === 'Image');
 check(
   'zip functions on node 24 arm64',
-  zipFunctions.length === 8 &&
+  zipFunctions.length === 9 &&
     zipFunctions.every(
       (fn) =>
         fn.Properties.Runtime === 'nodejs24.x' &&
@@ -119,8 +120,8 @@ check(
   zipFunctions.map((fn) => [fn.Properties.Runtime, fn.Properties.Architectures]),
 );
 check(
-  'render, upload and scan-asset functions are x86_64 container images',
-  imageFunctions.length === 3 &&
+  'render, upload, scan-asset and image-edit functions are x86_64 container images',
+  imageFunctions.length === 4 &&
     imageFunctions.every((fn) => json(fn.Properties.Architectures) === json(['x86_64'])),
   imageFunctions.map((fn) => fn.Properties.ImageConfig),
 );
@@ -214,6 +215,24 @@ check(
 check(
   'scan analysis may call Bedrock through the Mantle endpoint',
   policies.includes('bedrock-mantle:CreateInference'),
+);
+
+check(
+  'image edits may invoke only the three Stability image services',
+  policies.includes('stable-image-remove-background') &&
+    policies.includes('stable-outpaint') &&
+    policies.includes('stable-image-style-guide') &&
+    !policies.includes('foundation-model/*'),
+);
+check(
+  'the Anthropic key is readable as a named parameter',
+  policies.includes('/adstudio/anthropic-api-key'),
+);
+check(
+  'Claude on Bedrock is limited to the named models',
+  policies.includes('claude-haiku-4-5-20251001-v1:0') &&
+    policies.includes('claude-sonnet-4-6') &&
+    !policies.includes('foundation-model/anthropic.*'),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -164,6 +164,8 @@ export interface Asset {
   focalX: number;
   focalY: number;
   facesFound?: number;
+  source?: 'upload' | 'scan' | 'ai-edit' | 'ai-generated';
+  derivedFrom?: string;
   createdAt: string;
   createdBy: string;
 }
@@ -244,6 +246,7 @@ export interface Project {
   templateId: string;
   templateVersion: number;
   brandKitId?: string;
+  origin?: 'template' | 'ai';
   values: ProjectValues;
   revision: number;
   createdAt: string;

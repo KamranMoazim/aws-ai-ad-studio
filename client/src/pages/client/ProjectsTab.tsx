@@ -12,6 +12,7 @@ import type { BrandKit, Project, TemplateMeta } from '../../lib/types';
 import { useLoad } from '../../lib/useLoad';
 import { AdStage } from '../../renderer/AdStage';
 import { ensureFonts } from '../../renderer/fonts';
+import { GeneratePanel } from './GeneratePanel';
 
 const PREVIEW_BOX = 180;
 
@@ -128,6 +129,7 @@ export function ProjectsTab({ clientId }: { clientId: string }) {
     [clientId],
   );
   const [creating, setCreating] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState<string | undefined>();
 
   const duplicate = async (project: Project) => {
@@ -142,12 +144,17 @@ export function ProjectsTab({ clientId }: { clientId: string }) {
 
   return (
     <div>
-      {creating ? (
-        <NewProject clientId={clientId} onCancel={() => setCreating(false)} />
-      ) : (
-        <button className="button primary" onClick={() => setCreating(true)}>
-          New ad set
-        </button>
+      {creating && <NewProject clientId={clientId} onCancel={() => setCreating(false)} />}
+      {generating && <GeneratePanel clientId={clientId} onCancel={() => setGenerating(false)} />}
+      {!creating && !generating && (
+        <div className="form-actions">
+          <button className="button primary" onClick={() => setGenerating(true)}>
+            Make ads with AI
+          </button>
+          <button className="button" onClick={() => setCreating(true)}>
+            Start from a template
+          </button>
+        </div>
       )}
       {(error || message) && <p className="error">{error ?? message}</p>}
       {data && data.projects.length === 0 && <p className="muted">No ad sets yet.</p>}

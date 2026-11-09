@@ -100,6 +100,9 @@ export const SPOT_CHECKS: Array<[string, Action, ResourceRef, boolean]> = [
   ['clientUser', 'txn:read', { type: 'Transaction', id: 'tA', clientId: 'A' }, false],
   ['clientUser', 'user:invite', { type: 'Client', id: 'A', clientId: 'A' }, false],
   ['clientUser', 'user:manage', ORG, false],
+  ['clientUser', 'brandkit:edit', { type: 'Client', id: 'A', clientId: 'A' }, false],
+  ['clientUser', 'project:edit', { type: 'Project', id: 'pA', clientId: 'A' }, true],
+  ['owner', 'brandkit:edit', { type: 'Client', id: 'A', clientId: 'A' }, true],
   ['noRole', 'client:read', { type: 'Client', id: 'A', clientId: 'A' }, false],
 ];
 

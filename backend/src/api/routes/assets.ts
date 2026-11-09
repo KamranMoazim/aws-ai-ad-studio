@@ -9,13 +9,24 @@ import { recordAudit } from '../../data/audit.js';
 import { getAsset, listAssets, saveAsset } from '../../data/assets.js';
 import type { ProcessUploadResult } from '../../media/process-upload.js';
 import type { AppEnv } from '../auth.js';
-import { permittedClient } from '../permit.js';
+import { canClient, permittedClient } from '../permit.js';
 
 export const assetRoutes = new Hono<AppEnv>();
 const lambdaClient = new LambdaClient({});
 
 export async function withUrl(asset: Asset) {
   return { ...asset, url: asset.key ? await readUrl(asset.key, { preview: true }) : undefined };
+}
+
+async function uploadingClient(context: Parameters<typeof permittedClient>[0]) {
+  const client = await permittedClient(context, 'client:read');
+  const allowed =
+    (await canClient(context, 'brandkit:edit', client.clientId)) ||
+    (await canClient(context, 'project:create', client.clientId));
+  if (!allowed) {
+    throw new HttpError(403, 'forbidden', 'You do not have permission to upload images');
+  }
+  return client;
 }
 
 assetRoutes.get('/:id/assets', async (context) => {
@@ -25,7 +36,7 @@ assetRoutes.get('/:id/assets', async (context) => {
 });
 
 assetRoutes.post('/:id/assets/upload-url', async (context) => {
-  const client = await permittedClient(context, 'brandkit:edit');
+  const client = await uploadingClient(context);
   const input = uploadRequestSchema.parse(await context.req.json());
   const asset: Asset = {
     assetId: newId(),
@@ -48,7 +59,7 @@ assetRoutes.post('/:id/assets/upload-url', async (context) => {
 });
 
 assetRoutes.post('/:id/assets/:assetId/complete', async (context) => {
-  const client = await permittedClient(context, 'brandkit:edit');
+  const client = await uploadingClient(context);
   const assetId = context.req.param('assetId');
   const asset = isId(assetId) ? await getAsset(client.clientId, assetId) : undefined;
   if (!asset) {

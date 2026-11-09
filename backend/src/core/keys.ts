@@ -59,3 +59,6 @@ export const stripeEventPk = (eventId: string) => `STRIPE#${eventId}`;
 export const SCAN_PREFIX = 'SCAN#';
 export const scanSk = (scanId: string) => `${SCAN_PREFIX}${scanId}`;
 export const scanFolder = (clientId: string, scanId: string) => `scans/${clientId}/${scanId}`;
+
+export const GENERATION_PREFIX = 'GEN#';
+export const generationSk = (generationId: string) => `${GENERATION_PREFIX}${generationId}`;

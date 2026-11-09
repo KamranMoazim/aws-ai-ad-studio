@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:keys && npm run test:policies && npm run test:template && npm run test:media && npm run test:payments && npm run test:fetcher && npm run test:routes && npm run test:scan",
+    "test": "npm run test:keys && npm run test:policies && npm run test:template && npm run test:media && npm run test:payments && npm run test:fetcher && npm run test:routes && npm run test:scan && npm run test:generate",
     "test:template": "tsx test/template.test.ts",
     "test:keys": "tsx test/keys.test.ts",
     "test:policies": "tsx test/policies.test.ts",
     "test:authz:live": "tsx test/authz-live.test.ts",
     "test:flow:live": "tsx test/flow-live.test.ts",
-    "test:live": "npm run test:authz:live && npm run test:flow:live && npm run test:templates:live && npm run test:projects:live && npm run test:golden:live && npm run test:payments:live && npm run test:scan:live",
+    "test:live": "npm run test:authz:live && npm run test:flow:live && npm run test:templates:live && npm run test:projects:live && npm run test:golden:live && npm run test:payments:live && npm run test:scan:live && npm run test:generate:live",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "client-config": "tsx scripts/client-config.ts",
     "dev:api": "tsx watch src/api/local.ts",
@@ -28,7 +28,9 @@
     "test:routes": "tsx test/routes.test.ts",
     "test:scan-local": "tsx test/scan-local.test.ts",
     "test:scan": "tsx test/scan.test.ts",
-    "test:scan:live": "tsx test/scan-eval-live.test.ts"
+    "test:scan:live": "tsx test/scan-eval-live.test.ts",
+    "test:generate": "tsx test/generate.test.ts",
+    "test:generate:live": "tsx test/generate-live.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/bedrock-sdk": "^1.1.1",
@@ -55,6 +57,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1164.0",
     "@cedar-policy/cedar-wasm": "^4.14.0",
     "@hono/node-server": "^2.1.6",
     "@types/aws-lambda": "^8.10.164",

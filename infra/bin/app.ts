@@ -14,5 +14,9 @@ new AdStudioStack(app, 'AdStudioStack', {
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: 'us-east-1' },
   appName: process.env.APP_NAME || 'AdStudio',
   senderEmail: process.env.SENDER_EMAIL || undefined,
+  claudeProvider:
+    process.env.CLAUDE_PROVIDER === 'anthropic' || process.env.CLAUDE_PROVIDER === 'bedrock-legacy'
+      ? process.env.CLAUDE_PROVIDER
+      : 'bedrock',
   clientDistPath: fileURLToPath(new URL('../../client/dist', import.meta.url)),
 });

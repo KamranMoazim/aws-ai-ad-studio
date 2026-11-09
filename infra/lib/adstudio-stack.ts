@@ -1,5 +1,6 @@
 import { CfnOutput, Stack, type StackProps } from 'aws-cdk-lib';
 import type { Construct } from 'constructs';
+import { Ai, type ClaudeProvider } from './ai.js';
 import { Auth } from './auth.js';
 import { ExportPipeline } from './export-pipeline.js';
 import { Media } from './media.js';
@@ -11,6 +12,7 @@ export interface AdStudioStackProps extends StackProps {
   appName: string;
   clientDistPath: string;
   senderEmail?: string;
+  claudeProvider: ClaudeProvider;
 }
 
 export class AdStudioStack extends Stack {
@@ -20,6 +22,7 @@ export class AdStudioStack extends Stack {
   readonly media: Media;
   readonly exports: ExportPipeline;
   readonly scans: ScanPipeline;
+  readonly ai: Ai;
 
   constructor(scope: Construct, id: string, props: AdStudioStackProps) {
     super(scope, id, props);
@@ -39,6 +42,13 @@ export class AdStudioStack extends Stack {
       table: this.storage.table,
       assetsBucket: this.storage.assetsBucket,
       scanAssets: this.media.scanAssets,
+      claude: { provider: props.claudeProvider },
+    });
+    this.ai = new Ai(this, 'Ai', {
+      table: this.storage.table,
+      assetsBucket: this.storage.assetsBucket,
+      media: this.media,
+      claude: { provider: props.claudeProvider },
     });
     this.web = new Web(this, 'Web', {
       storage: this.storage,
@@ -46,6 +56,7 @@ export class AdStudioStack extends Stack {
       media: this.media,
       exports: this.exports,
       scans: this.scans,
+      ai: this.ai,
       clientDistPath: props.clientDistPath,
       senderEmail: props.senderEmail,
     });
