@@ -11,13 +11,12 @@ import {
 } from '../scan/claude.js';
 import { verifyContent, type VerifiedContent } from '../scan/offers.js';
 import type { Palette } from '../scan/palette.js';
+import { draftPhotoIndexes } from '../scan/photos.js';
 import type { SiteCapture } from '../scan/types.js';
 import type { ScanInput } from './browse.js';
 
 const s3Client = new S3Client({});
 const PHOTOS_PER_CALL = 20;
-const DRAFT_PHOTOS = 8;
-const AD_LABELS = ['product', 'team', 'place', 'hero', 'work', 'other'];
 
 export interface ScanResult {
   url: string;
@@ -130,11 +129,7 @@ export async function handler(
       name: content.businessName || home.title,
       colors: assets.palette,
       logoIndex: validLogo,
-      photoIndexes: photos
-        .filter((photo) => !photo.label || AD_LABELS.includes(photo.label))
-        .sort((left, right) => (right.quality ?? 3) - (left.quality ?? 3))
-        .slice(0, DRAFT_PHOTOS)
-        .map((photo) => photo.index),
+      photoIndexes: draftPhotoIndexes(photos),
       services: content.services.slice(0, 12),
       offers: content.offers,
       ctas: content.ctas.slice(0, 10),

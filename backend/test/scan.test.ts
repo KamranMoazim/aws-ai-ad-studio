@@ -1,5 +1,6 @@
 import { verifyContent } from '../src/scan/offers.js';
 import { buildPalette, contrast, distance, isNeutral, kMeans } from '../src/scan/palette.js';
+import { draftPhotoIndexes } from '../src/scan/photos.js';
 import { sanitizeSvg } from '../src/scan/svg.js';
 import { choosePages, sitePrefix } from '../src/scan/browse.js';
 import { check, finish } from './helpers.js';
@@ -144,4 +145,25 @@ check(
     chosen.every((url) => url.includes('/bakery/') && !/login|privacy/.test(url)),
   chosen,
 );
+check(
+  'draft photos skip stock-like images when better ones exist',
+  JSON.stringify(
+    draftPhotoIndexes([
+      { index: 0, label: 'stock-like', quality: 4 },
+      { index: 1, label: 'product', quality: 3 },
+      { index: 2, label: 'hero', quality: 5 },
+    ]),
+  ) === '[2,1]',
+);
+check(
+  'draft photos fall back to the best of the rest, never icons',
+  JSON.stringify(
+    draftPhotoIndexes([
+      { index: 0, label: 'stock-like', quality: 1 },
+      { index: 1, label: 'icon', quality: 5 },
+      { index: 2, label: 'stock-like', quality: 2 },
+    ]),
+  ) === '[2,0]',
+);
+
 finish();
