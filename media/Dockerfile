@@ -6,7 +6,7 @@ COPY shared/package.json shared/package.json
 COPY shared/src shared/src
 COPY backend/package.json backend/package.json
 COPY backend/src backend/src
-RUN esbuild backend/src/media/render.ts backend/src/media/process-upload.ts \
+RUN esbuild backend/src/media/render.ts backend/src/media/process-upload.ts backend/src/media/scan-assets.ts \
   --bundle --platform=node --format=esm --target=node24 --outdir=/out --out-extension:.js=.mjs \
   --external:sharp --external:puppeteer-core --external:@sparticuz/chromium --external:@aws-sdk/* \
   "--banner:js=import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);"

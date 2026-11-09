@@ -55,3 +55,7 @@ export const priceSk = (taskType: string) => `${PRICE_PREFIX}${taskType}`;
 export const txnSk = (iso: string, txnId: string) => `${TXN_PREFIX}${iso}#${txnId}`;
 export const downloadTokenPk = (hash: string) => `DL#${hash}`;
 export const stripeEventPk = (eventId: string) => `STRIPE#${eventId}`;
+
+export const SCAN_PREFIX = 'SCAN#';
+export const scanSk = (scanId: string) => `${SCAN_PREFIX}${scanId}`;
+export const scanFolder = (clientId: string, scanId: string) => `scans/${clientId}/${scanId}`;

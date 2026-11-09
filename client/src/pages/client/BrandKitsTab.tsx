@@ -3,6 +3,7 @@ import { COLOR_ROLES } from '../../../../shared/src/index';
 import { api, errorText } from '../../lib/api';
 import type { Asset, BrandKit } from '../../lib/types';
 import { useLoad } from '../../lib/useLoad';
+import { ScanPanel } from './ScanPanel';
 
 type Draft = Omit<BrandKit, 'kitId' | 'clientId' | 'updatedAt'>;
 
@@ -200,8 +201,9 @@ export function BrandKitsTab({ clientId }: { clientId: string }) {
 
   return (
     <div>
-      <button className="button primary" onClick={() => setEditing({ draft: { ...EMPTY } })}>
-        New brand kit
+      <ScanPanel clientId={clientId} onSaved={reload} />
+      <button className="button" onClick={() => setEditing({ draft: { ...EMPTY } })}>
+        New brand kit by hand
       </button>
       {data.kits.length === 0 && <p className="muted">No brand kits yet.</p>}
       <ul className="kit-list">

@@ -12,6 +12,7 @@ import { clientRoutes } from './routes/clients.js';
 import { meRoutes } from './routes/me.js';
 import { clientProjectRoutes, projectRoutes } from './routes/projects.js';
 import { roleRoutes } from './routes/roles.js';
+import { scanRoutes } from './routes/scans.js';
 import { settingsRoutes } from './routes/settings.js';
 import { templateRoutes } from './routes/templates.js';
 import { userRoutes } from './routes/users.js';
@@ -32,7 +33,7 @@ app.use(
 app.get('/health', (context) => context.json({ ok: true }));
 app.route('/branding', brandingRoutes);
 app.route('/d', downloadRoutes);
-for (const path of [
+export const PROTECTED_PREFIXES = [
   '/me',
   '/settings',
   '/users',
@@ -40,7 +41,10 @@ for (const path of [
   '/clients',
   '/templates',
   '/projects',
-]) {
+  '/prices',
+  '/transactions',
+];
+for (const path of PROTECTED_PREFIXES) {
   app.use(path, requireUser);
   app.use(`${path}/*`, requireUser);
 }
@@ -54,6 +58,7 @@ app.route('/clients', brandKitRoutes);
 app.route('/clients', clientProjectRoutes);
 app.route('/projects', projectRoutes);
 app.route('/clients', clientPaymentRoutes);
+app.route('/clients', scanRoutes);
 app.route('/prices', priceRoutes);
 app.route('/transactions', transactionRoutes);
 app.route('/templates', templateRoutes);

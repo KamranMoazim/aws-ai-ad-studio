@@ -12,7 +12,14 @@ import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
 import type { Auth } from './auth.js';
 import type { ExportPipeline } from './export-pipeline.js';
-import { CLIENT_ASSETS_PREFIX, EXPORTS_PREFIX, UPLOADS_PREFIX, type Media } from './media.js';
+import type { ScanPipeline } from './scan-pipeline.js';
+import {
+  CLIENT_ASSETS_PREFIX,
+  EXPORTS_PREFIX,
+  SCANS_PREFIX,
+  UPLOADS_PREFIX,
+  type Media,
+} from './media.js';
 import { appFunction, logGroup } from './function.js';
 import {
   grantReadParameters,
@@ -24,6 +31,7 @@ import type { Storage } from './storage.js';
 export const LOCAL_ORIGIN = 'http://localhost:5173';
 export const BRANDING_PREFIX = 'branding/';
 export const DOWNLOAD_PREFIX = 'd/';
+export const SCAN_FIXTURES_PREFIX = 'scan-fixtures/';
 export const TEMPLATE_ASSETS_PREFIX = 'template-assets/';
 export const TEMPLATES_PREFIX = 'templates/';
 
@@ -32,6 +40,7 @@ export interface WebProps {
   auth: Auth;
   media: Media;
   exports: ExportPipeline;
+  scans: ScanPipeline;
   clientDistPath: string;
   senderEmail?: string;
 }
@@ -115,7 +124,7 @@ export class Web extends Construct {
       },
       additionalBehaviors: {
         ...Object.fromEntries(
-          [BRANDING_PREFIX, TEMPLATE_ASSETS_PREFIX].map((prefix) => [
+          [BRANDING_PREFIX, TEMPLATE_ASSETS_PREFIX, SCAN_FIXTURES_PREFIX].map((prefix) => [
             `${prefix}*`,
             {
               origin: assetsOrigin,
@@ -157,6 +166,7 @@ export class Web extends Construct {
         SITE_URL: this.siteUrl,
         PROCESS_UPLOAD_FUNCTION: props.media.processUpload.functionName,
         EXPORT_STATE_MACHINE_ARN: props.exports.stateMachine.stateMachineArn,
+        SCAN_STATE_MACHINE_ARN: props.scans.stateMachine.stateMachineArn,
         CORS_ORIGINS: `${LOCAL_ORIGIN},${this.siteUrl}`,
         ...(props.senderEmail ? { SENDER_EMAIL: props.senderEmail } : {}),
       },
@@ -173,6 +183,9 @@ export class Web extends Construct {
       assetsBucket.grantReadWrite(this.api, `${prefix}*`);
     }
     assetsBucket.grantPut(this.api, `${UPLOADS_PREFIX}*`);
+    assetsBucket.grantRead(this.api, `${SCANS_PREFIX}*`);
+    assetsBucket.grantPut(this.api, `${CLIENT_ASSETS_PREFIX}*`);
+    props.scans.stateMachine.grantStartExecution(this.api);
     assetsBucket.grantRead(this.api, `${CLIENT_ASSETS_PREFIX}*`);
     props.media.processUpload.grantInvoke(this.api);
     props.exports.stateMachine.grantStartExecution(this.api);

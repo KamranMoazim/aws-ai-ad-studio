@@ -110,7 +110,7 @@ const zipFunctions = appFunctions.filter((fn) => fn.Properties.Runtime);
 const imageFunctions = appFunctions.filter((fn) => fn.Properties.PackageType === 'Image');
 check(
   'zip functions on node 24 arm64',
-  zipFunctions.length === 5 &&
+  zipFunctions.length === 8 &&
     zipFunctions.every(
       (fn) =>
         fn.Properties.Runtime === 'nodejs24.x' &&
@@ -119,12 +119,15 @@ check(
   zipFunctions.map((fn) => [fn.Properties.Runtime, fn.Properties.Architectures]),
 );
 check(
-  'render and upload functions are x86_64 container images',
-  imageFunctions.length === 2 &&
+  'render, upload and scan-asset functions are x86_64 container images',
+  imageFunctions.length === 3 &&
     imageFunctions.every((fn) => json(fn.Properties.Architectures) === json(['x86_64'])),
   imageFunctions.map((fn) => fn.Properties.ImageConfig),
 );
-const [stateMachine] = ofType('AWS::StepFunctions::StateMachine');
+const stateMachines = ofType('AWS::StepFunctions::StateMachine');
+const [stateMachine] = stateMachines.filter((machine) =>
+  json(machine.Properties).includes('RenderSize'),
+);
 const definition = json(stateMachine?.Properties ?? {});
 check(
   'export state machine maps over sizes with concurrency 8 and a failure path',
@@ -172,7 +175,8 @@ const behaviors = distribution?.Properties.DistributionConfig?.CacheBehaviors ??
 const paths = behaviors.map((behavior: { PathPattern: string }) => behavior.PathPattern).sort();
 check(
   'branding, template assets and download links have their own paths',
-  JSON.stringify(paths) === JSON.stringify(['branding/*', 'd/*', 'template-assets/*']),
+  JSON.stringify(paths) ===
+    JSON.stringify(['branding/*', 'd/*', 'scan-fixtures/*', 'template-assets/*']),
   paths,
 );
 check(
@@ -191,6 +195,25 @@ check(
 check(
   'stripe keys are readable only as named parameters',
   policies.includes('/adstudio/stripe-secret-key') && !policies.includes('parameter/*'),
+);
+
+const scanMachine = stateMachines.find((machine) =>
+  json(machine.Properties).includes('BrowseSite'),
+);
+check(
+  'scan state machine browses, processes and analyzes with a failure path',
+  ['BrowseSite', 'ProcessAssets', 'AnalyzeContent', 'MarkFailed'].every((step) =>
+    json(scanMachine?.Properties ?? {}).includes(step),
+  ),
+);
+check(
+  'scan browsing uses the managed AgentCore browser only',
+  policies.includes('bedrock-agentcore:StartBrowserSession') &&
+    policies.includes('browser/aws.browser.v1'),
+);
+check(
+  'scan analysis may call Bedrock through the Mantle endpoint',
+  policies.includes('bedrock-mantle:CreateInference'),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

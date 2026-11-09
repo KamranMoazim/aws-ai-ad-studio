@@ -12,6 +12,7 @@ export const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export const UPLOADS_PREFIX = 'uploads/';
 export const CLIENT_ASSETS_PREFIX = 'assets/';
 export const EXPORTS_PREFIX = 'exports/';
+export const SCANS_PREFIX = 'scans/';
 
 export interface MediaProps {
   table: dynamodb.ITableV2;
@@ -21,6 +22,7 @@ export interface MediaProps {
 export class Media extends Construct {
   readonly processUpload: lambda.DockerImageFunction;
   readonly render: lambda.DockerImageFunction;
+  readonly scanAssets: lambda.DockerImageFunction;
 
   constructor(scope: Construct, id: string, props: MediaProps) {
     super(scope, id);
@@ -62,6 +64,19 @@ export class Media extends Construct {
       logGroup: logGroup(this, 'RenderLogs'),
     });
     props.assetsBucket.grantRead(this.render, `${CLIENT_ASSETS_PREFIX}*`);
+
+    this.scanAssets = new lambda.DockerImageFunction(this, 'ScanAssets', {
+      code: image('scan-assets.handler'),
+      architecture: lambda.Architecture.X86_64,
+      memorySize: 2048,
+      timeout: Duration.minutes(3),
+      environment,
+      logGroup: logGroup(this, 'ScanAssetsLogs'),
+    });
+    props.assetsBucket.grantReadWrite(this.scanAssets, `${SCANS_PREFIX}*`);
+    this.scanAssets.addToRolePolicy(
+      new iam.PolicyStatement({ actions: ['rekognition:DetectFaces'], resources: ['*'] }),
+    );
     props.assetsBucket.grantReadWrite(this.render, `${EXPORTS_PREFIX}*`);
   }
 }

@@ -4,7 +4,7 @@ Branded AI ad creative for display and Meta ads, on AWS.
 
 AdStudio is a white-labelled web app where an agency's clients sign in and produce ready-to-upload ads in 8 sizes, either from a locked template or from their website. Agency staff manage clients, templates, pricing and permissions in an admin area. One deployment serves one agency, in the agency's own AWS account.
 
-> Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing. Phase 3 adds the client side: uploads, brand kits, the 8-size ad editor, server-side export and the archive. Phase 4 adds payments: prices, Stripe Checkout, webhooks, transactions, refunds and emailed download links.
+> Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing. Phase 3 adds the client side: uploads, brand kits, the 8-size ad editor, server-side export and the archive. Phase 4 adds payments: prices, Stripe Checkout, webhooks, transactions, refunds and emailed download links. Phase 5 adds the website scan: URL in, reviewed brand kit out.
 
 ## How it works (phase 1)
 
@@ -76,6 +76,24 @@ npm run stripe:webhook    # registers the deployed webhook URL in Stripe and sto
 
 Then set prices under Pricing and switch "Payment required" on for a client. Set `SENDER_EMAIL` in `infra/.env` and redeploy to enable emailed links; SES sends that address a verification email, and while the account is in the SES sandbox the recipients must be verified too.
 
+## Website scan (phase 5)
+
+A client pastes their website address, confirms they own or represent it (the statement, user and time are stored on the scan and in the audit log), and gets a draft brand kit to review. Nothing is saved until they press Save.
+
+1. **Validate** (API): http(s) only on ports 80/443, and every address the host resolves to must be public. One running scan per client and 10 a day.
+2. **Browse** (Lambda + **AgentCore Browser**): an AWS-managed, isolated Chromium session, connected with Puppeteer over a SigV4-signed WebSocket, so client sites never run inside our Lambdas or VPC. It opens the home page and up to 5 more pages from the same site (services, products, offers or pricing, about, contact) and runs one capture script on each: title, meta and Open Graph tags, JSON-LD, logo candidates (header images linking home, anything named logo or brand, inline SVG, CSS background logos, app icons, `og:logo`), computed colours of buttons, links, headers, headings and backgrounds plus `:root` colour variables, fonts, main text, headings, CTA labels, images of 400 px or more, and navigation links. A screenshot of each page goes to S3.
+3. **Process** (media container): logo candidates are ranked by rules (header, link home, "logo" in the name, repeated across pages; award, partner, payment and social badges penalised), downloaded through the **guarded fetcher**, SVGs sanitised (no scripts, event handlers, external references, entities or foreignObject) and rasterised. Photos are downloaded (up to 40), de-duplicated by perceptual hash, resized, and given a focal point from Rekognition faces. The palette combines CSS colours weighted by role with a k-means over the screenshots, drops near-white and near-black, and fixes text contrast.
+4. **Analyse** (Claude Haiku 5.5 on Bedrock, structured outputs, no tools): picks the real logo from previews shown on light and dark backgrounds, labels and rates every photo, and extracts business name, services, value propositions, offers, CTAs, tone and audience. Page text goes in as quoted data with an instruction to ignore anything that looks like an instruction. Every offer must quote the page; code then checks each quote against the captured text, drops offers whose quote is not there, moves an offer to the page that really has the quote, falls back to the quote when the model's wording adds numbers, and drops CTAs that are not on the site.
+5. **Review** in the app: logo (Claude's pick preselected), colours by role, photos, services, offers with their quote and source link, CTAs. Saving copies the chosen logo and photos into the client's assets and creates the brand kit; the API only accepts offers that the scan found.
+
+The **guarded fetcher** (all image downloads) allows http(s) on ports 80 and 443 only, resolves the host and pins the connection to an address it has checked, refuses private, loopback, link-local, CGNAT, metadata, multicast and documentation ranges (also IPv4-mapped, NAT64 and 6to4 IPv6, and decimal, hex and short IPv4 forms), re-checks every redirect hop (at most 3), and stops at 10 MB or 10 s. The body must sniff as PNG, JPEG, WebP, GIF, SVG or ICO.
+
+| Entity | PK | SK |
+| --- | --- | --- |
+| Scan | `CLIENT#<id>` | `SCAN#<yyyymmddThhmmssZ>-<id>` |
+
+Scan files (capture, screenshots, logo candidates, photos, result) live under `scans/<client>/<scan>/` in the assets bucket.
+
 ## Roles and scopes
 
 | Role | Type | Grants |
@@ -114,7 +132,7 @@ TypeScript end to end, Node.js 24 on arm64 Lambda, AWS CDK (one `AdStudioStack`)
 
 ## Quick start
 
-Prerequisites: an AWS account in `us-east-1` with CDK bootstrapped, Node.js 24, and Docker (the render Lambda is a container image). The local render and golden tests use your installed Google Chrome (`CHROME_PATH` to point elsewhere).
+Prerequisites: an AWS account in `us-east-1` with CDK bootstrapped and Bedrock access to Claude Haiku 5.5 (`anthropic.claude-haiku-5-5`), Node.js 24, and Docker (the render Lambda is a container image). The local render and golden tests use your installed Google Chrome (`CHROME_PATH` to point elsewhere).
 
 ```bash
 npm run install:all
@@ -168,13 +186,17 @@ Local development: `npm run client:config` writes `client/public/config.json` fr
 | `GET` | `/transactions?from&to&clientId&status&format=csv` | `txn:read` |
 | `GET` | `/d/:token` | public; checks the token, then redirects to the file |
 | `POST` | `/webhooks/stripe` | public; Stripe signature required |
+| `POST` | `/clients/:id/scans` | `brandkit:edit`; `{ url, confirmOwnership: true }` |
+| `GET` | `/clients/:id/scans`, `/clients/:id/scans/:scanId` | `client:read`; result with preview URLs when ready |
+| `POST` | `/clients/:id/scans/:scanId/brand-kit` | `brandkit:edit`; saves the reviewed draft |
 
 ## Tests
 
 ```bash
 npm run typecheck
 npm run backend:test     # offline: keys and schemas, Cedar policy matrix, template model, media
-npm --prefix backend run test:render   # render page in your local Chrome: 3 templates x 8 sizes
+npm --prefix backend run test:render       # render page in your local Chrome: 3 templates x 8 sizes
+npm --prefix backend run test:scan-local   # browses the 10 fixture sites in your local Chrome; rules-only logo and palette
 npm run infra:test       # synthesizes the stack and asserts on the template
 npm run test:live        # against the deployed stack (needs bootstrap first)
 ```
@@ -189,6 +211,10 @@ npm run test:live        # against the deployed stack (needs bootstrap first)
 - **Golden (live):** 3 templates x 2 content sets x 8 sizes rendered by the deployed render Lambda and by local Chrome; each pair must differ in under 0.5% of pixels. Diff images go to `.playwright-mcp/golden-diffs/` when one fails.
 - **Payments (offline):** signed webhooks verify; tampered bodies, other secrets and hour-old signatures are rejected; CSV amounts, labels and formula escaping; price validation; token format and hashing.
 - **Payments (live):** an exempt client exports without Checkout and gets a $0 transaction; a paying client gets a Checkout URL and an `awaiting_payment` export with the server-side amount and no download; a bad signature is rejected; a signed `checkout.session.completed` (sent twice) records one paid transaction and renders the export; the emailed link redirects to the file; a signed `charge.refunded` revokes the link and the in-app download and marks the transaction refunded; client users cannot see payments. The paid part needs the Stripe keys and is skipped with a note otherwise.
+- **Fetcher (offline):** 16 private and special address forms refused, public ones allowed; file scheme, metadata IP, loopback, decimal, hex and short IP forms, localhost after DNS, credentials and odd ports refused; HTML served as `image/png` refused; a redirect to the metadata IP refused on the hop; a fourth redirect, an oversized body, a slow response and a 404 refused; SVG, JPEG sniffing.
+- **Scan (offline):** offer quotes checked against page text (kept, dropped, moved to the right page, invented numbers removed), unknown CTAs dropped; SVG scripts, handlers, external references, entities and foreignObject removed; palette roles, contrast fix and an empty site; k-means; same-site page choice skipping login and privacy pages.
+- **Scan (local Chrome):** 10 generated fixture sites (`backend/test/fixtures/sites.ts`) with a header image logo, an inline SVG, an `og:logo`, a CSS background logo, a text-only logo with an app icon, an SVG file, footer award badges, a white logo on a dark header and an unlabelled inline SVG; offers on some, none on others. Checks the pages visited, the logo shortlist, the palette and that every real offer is captured.
+- **Scan eval (live):** the same 10 sites uploaded under `scan-fixtures/` and scanned through the deployed pipeline (AgentCore Browser, media container, Claude Haiku 5.5). Exit check: correct logo for at least 8, usable palette for all 10, no offer whose quote is not on the site; also a reviewed draft saves as a brand kit, an invented offer cannot be saved, client users cannot scan, private addresses and missing ownership confirmation are refused.
 - **Infra:** invite-only pool, SRP only for the web client, 15-minute access tokens, strict policy store, only `/health` and `/branding` public, private encrypted buckets, Node 24 arm64, no VPC or NAT.
 
 ## Build log
@@ -199,6 +225,7 @@ npm run test:live        # against the deployed stack (needs bootstrap first)
 | 2 | Templates and renderer: shared template model, Konva renderer, admin builder, browser + server lint, publish and versioning, 3 seed templates |
 | 3 | Client editor and export: uploads with sharp and Rekognition, brand kits, 8-size editor, Chromium render Lambda, compression, ZIP, archive, golden tests |
 | 4 | Payments: price catalogue and overrides, Stripe Checkout, signed and de-duplicated webhooks, transactions and CSV, refunds that revoke downloads, preview watermark, emailed download links |
+| 5 | Website scan: AgentCore Browser capture, guarded fetcher, logo ranking and SVG sanitising, palette, photo de-duplication and focal points, Claude Haiku 5.5 logo pick, photo labels and quoted-offer extraction, review and save as brand kit |
 
 ## Tear down
 

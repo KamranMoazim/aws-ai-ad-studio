@@ -10,6 +10,7 @@ export interface AppFunctionProps {
   environment?: Record<string, string>;
   timeout?: Duration;
   memorySize?: number;
+  nodeModules?: string[];
 }
 
 const REQUIRE_SHIM =
@@ -39,6 +40,7 @@ export function appFunction(scope: Construct, id: string, props: AppFunctionProp
       minify: true,
       keepNames: true,
       banner: REQUIRE_SHIM,
+      nodeModules: props.nodeModules,
     },
     logGroup: logGroup(scope, `${id}Logs`),
   });

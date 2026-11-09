@@ -22,6 +22,8 @@ const { deletePrefix } = await import('./cleanup.js');
 
 const MAX_DIFF_RATIO = 0.005;
 const PIXEL_THRESHOLD = 0.1;
+// macOS and Linux rasterise glyph edges differently; a light blur keeps layout changes visible.
+const EDGE_BLUR = 0.8;
 const DIFF_DIR = fileURLToPath(new URL('../../.playwright-mcp/golden-diffs/', import.meta.url));
 const s3Client = new S3Client({ region: outputs.Region });
 const lambdaClient = new LambdaClient({ region: outputs.Region });
@@ -111,8 +113,9 @@ try {
               (result) => result.png,
             ),
           ]);
-          const left = PNG.sync.read(server);
-          const right = PNG.sync.read(local);
+          const soften = (png: Buffer) => sharp(png).blur(EDGE_BLUR).png().toBuffer();
+          const left = PNG.sync.read(await soften(server));
+          const right = PNG.sync.read(await soften(local));
           if (left.width !== right.width || left.height !== right.height) {
             return { size, ratio: 1 };
           }

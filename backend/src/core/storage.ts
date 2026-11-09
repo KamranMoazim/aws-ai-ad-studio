@@ -1,4 +1,5 @@
 import {
+  CopyObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -75,5 +76,17 @@ export function readUrl(key: string, options: { downloadName?: string; preview?:
         : undefined,
     }),
     { expiresIn: options.preview ? PREVIEW_URL_SECONDS : DOWNLOAD_URL_SECONDS },
+  );
+}
+
+export async function copyObject(from: string, to: string, contentType: string): Promise<void> {
+  await s3Client.send(
+    new CopyObjectCommand({
+      Bucket: bucket(),
+      CopySource: `${bucket()}/${from}`,
+      Key: to,
+      ContentType: contentType,
+      MetadataDirective: 'REPLACE',
+    }),
   );
 }

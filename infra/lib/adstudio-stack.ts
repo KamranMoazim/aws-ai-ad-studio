@@ -3,6 +3,7 @@ import type { Construct } from 'constructs';
 import { Auth } from './auth.js';
 import { ExportPipeline } from './export-pipeline.js';
 import { Media } from './media.js';
+import { ScanPipeline } from './scan-pipeline.js';
 import { Storage } from './storage.js';
 import { Web } from './web.js';
 
@@ -18,6 +19,7 @@ export class AdStudioStack extends Stack {
   readonly web: Web;
   readonly media: Media;
   readonly exports: ExportPipeline;
+  readonly scans: ScanPipeline;
 
   constructor(scope: Construct, id: string, props: AdStudioStackProps) {
     super(scope, id, props);
@@ -33,11 +35,17 @@ export class AdStudioStack extends Stack {
       assetsBucket: this.storage.assetsBucket,
       render: this.media.render,
     });
+    this.scans = new ScanPipeline(this, 'Scan', {
+      table: this.storage.table,
+      assetsBucket: this.storage.assetsBucket,
+      scanAssets: this.media.scanAssets,
+    });
     this.web = new Web(this, 'Web', {
       storage: this.storage,
       auth: this.auth,
       media: this.media,
       exports: this.exports,
+      scans: this.scans,
       clientDistPath: props.clientDistPath,
       senderEmail: props.senderEmail,
     });
@@ -60,6 +68,7 @@ export class AdStudioStack extends Stack {
     new CfnOutput(this, 'StripeWebhookUrl', {
       value: `${this.web.httpApi.apiEndpoint}/webhooks/stripe`,
     });
+    new CfnOutput(this, 'ScanStateMachineArn', { value: this.scans.stateMachine.stateMachineArn });
     new CfnOutput(this, 'ExportStateMachineArn', {
       value: this.exports.stateMachine.stateMachineArn,
     });
