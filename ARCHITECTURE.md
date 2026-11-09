@@ -12,6 +12,10 @@ AdStudio is a white-labelled web app where an agency's clients produce ready-to-
 
 ## Components
 
+![Architecture](docs/architecture.png)
+
+The diagram source is [docs/architecture.drawio](docs/architecture.drawio) (open it in draw.io). A simplified view:
+
 ```mermaid
 flowchart LR
   subgraph Edge

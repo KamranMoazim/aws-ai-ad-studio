@@ -6,6 +6,10 @@ AdStudio is a white-labelled web app where an agency's clients sign in and produ
 
 > Built in phases. Phase 1 is the foundation (storage, invite-only sign-in, roles and permissions, the branded shell). Phase 2 adds templates: the shared template model, the Konva renderer, the admin template builder, lint and publishing. Phase 3 adds the client side: uploads, brand kits, the 8-size ad editor, server-side export and the archive. Phase 4 adds payments: prices, Stripe Checkout, webhooks, transactions, refunds and emailed download links. Phase 5 adds the website scan: URL in, reviewed brand kit out. Phase 6 adds AI ad generation and AI image helpers. Phase 7 hardens it for handover: WAF, alarms, budget, dead-letter redrive, configurable limits, staff MFA, roles and audit screens, and documentation.
 
+![Architecture](docs/architecture.png)
+
+For day-to-day use, see the [user guide](GUIDE.md). The architecture diagram source is [docs/architecture.drawio](docs/architecture.drawio).
+
 More documentation: [ARCHITECTURE.md](ARCHITECTURE.md) (how it fits together and how it differs from the original plan), [RUNBOOK.md](RUNBOOK.md) (operations), [docs/adr](docs/adr) (decision records), [docs/template-authoring.md](docs/template-authoring.md) (for designers) and [docs/openapi.json](docs/openapi.json) (generated with `npm run openapi`).
 
 ## How it works (phase 1)
@@ -86,7 +90,7 @@ A client pastes their website address, confirms they own or represent it (the st
 1. **Validate** (API): http(s) only on ports 80/443, and every address the host resolves to must be public. One running scan per client and 10 a day.
 2. **Browse** (Lambda + **AgentCore Browser**): an AWS-managed, isolated Chromium session, connected with Puppeteer over a SigV4-signed WebSocket, so client sites never run inside our Lambdas or VPC. It opens the home page and up to 5 more pages from the same site (services, products, offers or pricing, about, contact) and runs one capture script on each: title, meta and Open Graph tags, JSON-LD, logo candidates (header images linking home, anything named logo or brand, inline SVG, CSS background logos, app icons, `og:logo`), computed colours of buttons, links, headers, headings and backgrounds plus `:root` colour variables, fonts, main text, headings, CTA labels, images of 400 px or more, and navigation links. A screenshot of each page goes to S3.
 3. **Process** (media container): logo candidates are ranked by rules (header, link home, "logo" in the name, repeated across pages; award, partner, payment and social badges penalised), downloaded through the **guarded fetcher**, SVGs sanitised (no scripts, event handlers, external references, entities or foreignObject) and rasterised. Photos are downloaded (up to 40), de-duplicated by perceptual hash, resized, and given a focal point from Rekognition faces. The palette combines CSS colours weighted by role with a k-means over the screenshots, drops near-white and near-black, and fixes text contrast.
-4. **Analyse** (Claude Haiku 5.5 on Bedrock, structured outputs, no tools): picks the real logo from previews shown on light and dark backgrounds, labels and rates every photo, and extracts business name, services, value propositions, offers, CTAs, tone and audience. Page text goes in as quoted data with an instruction to ignore anything that looks like an instruction. Every offer must quote the page; code then checks each quote against the captured text, drops offers whose quote is not there, moves an offer to the page that really has the quote, falls back to the quote when the model's wording adds numbers, and drops CTAs that are not on the site.
+4. **Analyse** (the fast Claude model, `CLAUDE_FAST_MODEL`; structured outputs, no tools): picks the real logo from previews shown on light and dark backgrounds, labels and rates every photo, and extracts business name, services, value propositions, offers, CTAs, tone and audience. Page text goes in as quoted data with an instruction to ignore anything that looks like an instruction. Every offer must quote the page; code then checks each quote against the captured text, drops offers whose quote is not there, moves an offer to the page that really has the quote, falls back to the quote when the model's wording adds numbers, and drops CTAs that are not on the site.
 5. **Review** in the app: logo (Claude's pick preselected), colours by role, photos, services, offers with their quote and source link, CTAs. Saving copies the chosen logo and photos into the client's assets and creates the brand kit; the API only accepts offers that the scan found.
 
 The **guarded fetcher** (all image downloads) allows http(s) on ports 80 and 443 only, resolves the host and pins the connection to an address it has checked, refuses private, loopback, link-local, CGNAT, metadata, multicast and documentation ranges (also IPv4-mapped, NAT64 and 6to4 IPv6, and decimal, hex and short IPv4 forms), re-checks every redirect hop (at most 3), and stops at 10 MB or 10 s. The body must sniff as PNG, JPEG, WebP, GIF, SVG or ICO.
@@ -107,12 +111,12 @@ Scan files (capture, screenshots, logo candidates, photos, result) live under `s
 | `bedrock-legacy` | Claude Haiku 4.5 | Claude Sonnet 4.6 | Claude Haiku 4.5 | Bedrock runtime (`InvokeModel`); used by this deployment while 5.x access is pending |
 | `anthropic` | Claude Haiku 5.5 | Claude Sonnet 5.5 | Claude Haiku 5.5 | Claude API, key in SSM via `npm run claude:key` |
 
-Prompts, structured outputs and validation are the same for all three. IAM allows `bedrock:InvokeModel` only on the named Claude and Stability models.
+`CLAUDE_FAST_MODEL` (scans, drafts) and `CLAUDE_COPY_MODEL` (final copy) in `infra/.env` override these models; the deploy grants access to exactly the models named. Prompts, structured outputs and validation are the same for all three. IAM allows `bedrock:InvokeModel` only on the named Claude and Stability models.
 
 **Generate** (`POST /clients/:id/generations`, async; the generate Lambda does the work and the app polls):
 
 1. **Pick templates:** published, enabled for the client, the right channel, required image slots fillable from the brand kit (no photo, no photo-led template), scored by tags matching the notes, whether there is an offer and how many colour roles the kit fills. Top 3.
-2. **Write copy** with Claude Sonnet 5.5 (Claude Haiku 5.5 for quick drafts), one structured-output call per template: every text slot with the per-size character limits and line counts, facts only from the brand kit and the chosen offer, `[confirm]` where a fact is missing, and shorter wording for the sizes that need it.
+2. **Write copy** with the copy model, `CLAUDE_COPY_MODEL` (the fast model for quick drafts), one structured-output call per template: every text slot with the per-size character limits and line counts, facts only from the brand kit and the chosen offer, `[confirm]` where a fact is missing, and shorter wording for the sizes that need it.
 3. **Images and colours:** the logo for light or dark backgrounds depending on what it sits on, photos matched to slots by aspect ratio (keeping their focal points), brand colours mapped to roles, and the text colour fixed when it would fail 4.5:1 (brand colours themselves are never changed).
 4. **Validate:** the render Lambda checks every size with the real fonts (overflow, character limits), and code checks for unsourced claims: any number, currency or percent sign, or words such as free, best, guaranteed, sale or limited that are not in the brand kit or offer, and banned phrases. One retry with the problems listed; anything still failing becomes `[confirm]` (at that size for fit problems, everywhere for claims), so a variant never opens with overflowing text or an unsupported claim.
 
@@ -189,7 +193,7 @@ TypeScript end to end, Node.js 24 on arm64 Lambda, AWS CDK (one `AdStudioStack`)
 
 ## Quick start
 
-Prerequisites: an AWS account in `us-east-1` with CDK bootstrapped and Bedrock access to Claude Haiku 5.5 (`anthropic.claude-haiku-5-5`), Node.js 24, and Docker (the render Lambda is a container image). The local render and golden tests use your installed Google Chrome (`CHROME_PATH` to point elsewhere).
+Prerequisites: an AWS account in `us-east-1` with CDK bootstrapped and Bedrock access to the Claude models named in `infra/.env` (Claude 4.5 or newer), Node.js 24, and Docker (the render Lambda is a container image). The local render and golden tests use your installed Google Chrome (`CHROME_PATH` to point elsewhere).
 
 ```bash
 npm run install:all
