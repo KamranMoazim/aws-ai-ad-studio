@@ -1,0 +1,10 @@
+node_modules
+dist
+cdk.out
+cdk-outputs.json
+.env
+*.log
+.DS_Store
+client/public/config.json
+.playwright-mcp
+AdStudio.md

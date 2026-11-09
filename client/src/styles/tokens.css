@@ -1,0 +1,14 @@
+:root {
+  --brand-primary: #1f3a5f;
+  --brand-accent: #e4572e;
+  --brand-background: #f7f5f0;
+  --brand-text: #1b1b1b;
+
+  --surface: #ffffff;
+  --border: color-mix(in srgb, var(--brand-text) 14%, transparent);
+  --muted: color-mix(in srgb, var(--brand-text) 60%, transparent);
+  --danger: #b42318;
+  --success: #067647;
+  --radius: 8px;
+  --font: 'Inter Variable', system-ui, sans-serif;
+}

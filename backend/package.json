@@ -1,0 +1,37 @@
+{
+  "name": "adstudio-backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:keys && npm run test:policies",
+    "test:keys": "tsx test/keys.test.ts",
+    "test:policies": "tsx test/policies.test.ts",
+    "test:authz:live": "tsx test/authz-live.test.ts",
+    "test:flow:live": "tsx test/flow-live.test.ts",
+    "test:live": "npm run test:authz:live && npm run test:flow:live",
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "client-config": "tsx scripts/client-config.ts",
+    "dev:api": "tsx watch src/api/local.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1164.0",
+    "@aws-sdk/client-dynamodb": "^3.1164.0",
+    "@aws-sdk/client-s3": "^3.1164.0",
+    "@aws-sdk/client-verifiedpermissions": "^3.1164.0",
+    "@aws-sdk/lib-dynamodb": "^3.1164.0",
+    "@aws-sdk/s3-request-presigner": "^3.1164.0",
+    "aws-jwt-verify": "^5.2.1",
+    "hono": "^4.13.17",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cedar-policy/cedar-wasm": "^4.14.0",
+    "@hono/node-server": "^2.1.6",
+    "@types/aws-lambda": "^8.10.164",
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "5.9"
+  }
+}

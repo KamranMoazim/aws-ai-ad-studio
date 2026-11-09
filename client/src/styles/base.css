@@ -1,0 +1,67 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--brand-text);
+  background: var(--brand-background);
+}
+
+h1,
+h2 {
+  margin: 0 0 12px;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 24px;
+}
+
+h2 {
+  font-size: 16px;
+}
+
+a {
+  color: var(--brand-primary);
+}
+
+input,
+select {
+  font: inherit;
+  color: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  min-width: 0;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fatal {
+  padding: 24px;
+}
+
+.splash {
+  min-height: 100vh;
+}
